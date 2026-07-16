@@ -1,0 +1,66 @@
+# =========================================================
+# Unreal Engine generated files
+# =========================================================
+**/Binaries/
+**/DerivedDataCache/
+**/Intermediate/
+**/Saved/
+
+# Visual Studio / IDE
+**/.vs/
+.vscode/
+.idea/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+*.code-workspace
+
+# Unreal temporary and packaged output
+**/Build/Receipts/
+**/Build/Windows/FileOpenOrder/
+**/StagedBuilds/
+**/Packaged/
+**/Packaging/
+
+# =========================================================
+# Local llama.cpp binaries and LLM models
+# =========================================================
+llama-*-bin-win-*/
+**/llama-*-bin-win-*/
+
+model/
+models/
+**/model/
+**/models/
+*.gguf
+*.bin
+*.onnx
+
+# =========================================================
+# Logs, caches, and local environment files
+# =========================================================
+*.log
+*.tmp
+*.cache
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.env
+.env.*
+!.env.example
+
+# Python cache / virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# =========================================================
+# Keep Unreal project source assets
+# These are intentionally NOT ignored:
+# *.uproject, Config/, Content/, Source/, Plugins/
+# =========================================================
