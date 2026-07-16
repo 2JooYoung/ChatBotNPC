@@ -43,9 +43,15 @@ void ANPCCharacter::BeginPlay()
 		InteractionSphere->OnComponentEndOverlap.AddDynamic(this, &ANPCCharacter::OnInteractionSphereEndOverlap);
 	}
 
-	if (!HasValidProfile())
+	if (HasValidProfile())
+	{
+		UE_LOG(LogChattingNPC, Log, TEXT("NPC '%s' ready. Id='%s', Radius=%.0f."),
+			*GetName(), *GetNPCId().ToString(), InteractionRadius);
+	}
+	else
 	{
 		UE_LOG(LogChattingNPC, Warning, TEXT("NPC '%s' has no valid profile assigned."), *GetName());
+		ChattingNPCScreenLog(FString::Printf(TEXT("[NPC] '%s' 프로필 미지정"), *GetName()), FColor::Red, 8.0f);
 	}
 }
 
@@ -57,6 +63,11 @@ void ANPCCharacter::OnInteractionSphereBeginOverlap(UPrimitiveComponent* /*Overl
 	{
 		return;
 	}
+
+	UE_LOG(LogChattingNPC, Log, TEXT("NPC '%s' (%s): player entered range."),
+		*GetName(), *GetNPCId().ToString());
+	ChattingNPCScreenLog(FString::Printf(TEXT("[NPC] 범위 진입: %s"),
+		*GetDisplayName().ToString()), FColor::Emerald);
 
 	if (INPCInteractorInterface* Interactor = Cast<INPCInteractorInterface>(OtherActor))
 	{
@@ -74,6 +85,11 @@ void ANPCCharacter::OnInteractionSphereEndOverlap(UPrimitiveComponent* /*Overlap
 	{
 		return;
 	}
+
+	UE_LOG(LogChattingNPC, Log, TEXT("NPC '%s' (%s): player exited range."),
+		*GetName(), *GetNPCId().ToString());
+	ChattingNPCScreenLog(FString::Printf(TEXT("[NPC] 범위 이탈: %s"),
+		*GetDisplayName().ToString()), FColor::Silver);
 
 	if (INPCInteractorInterface* Interactor = Cast<INPCInteractorInterface>(OtherActor))
 	{
@@ -115,6 +131,7 @@ void ANPCCharacter::StartConversation()
 		return;
 	}
 	bIsConversing = true;
+	UE_LOG(LogChattingNPC, Log, TEXT("NPC '%s' conversation started."), *GetNPCId().ToString());
 	OnConversationStarted();
 }
 
@@ -125,5 +142,6 @@ void ANPCCharacter::EndConversation()
 		return;
 	}
 	bIsConversing = false;
+	UE_LOG(LogChattingNPC, Log, TEXT("NPC '%s' conversation ended."), *GetNPCId().ToString());
 	OnConversationEnded();
 }

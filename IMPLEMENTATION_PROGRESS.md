@@ -14,8 +14,8 @@
 | **1** | 프로젝트 확인 및 기반 설계 | ✅ 완료 |
 | **2** | Local LLM 통신 (C++ 코어) | ✅ 완료 (빌드 성공) |
 | **3** | NPC (ANPCCharacter) | ✅ 완료 (빌드 성공) |
-| 4 | 플레이어 상호작용 | ⬜ 대기 |
-| 5 | 채팅 UI | ⬜ 대기 |
+| **4** | 플레이어 상호작용 | ✅ 완료 (빌드 성공) |
+| **5** | 채팅 UI | ✅ 완료 (빌드 성공) |
 | 6 | 다중 NPC & 대화 기록 | ⬜ 대기 |
 | 7 | 에디터 설정 & 테스트 | ⬜ 대기 |
 
@@ -231,3 +231,145 @@ SystemPrompt 빌드 + 히스토리 + user 메시지로 JSON 직렬화 → Reques
 
 ## 10. 다음 Phase 작업
 - **Phase 4 — 플레이어 상호작용**: `AChattingNPCPlayerCharacter`(INPCInteractorInterface 구현, 근접 NPC 목록·최근접 선택), `IA_Interact`(E) 바인딩, 대화 시작/종료, 이동·입력모드 제한/복구. `IMC_Default` E 매핑 + `BP_ThirdPersonCharacter` Reparent 절차.
+
+---
+
+# Phase 4 — 플레이어 상호작용 (완료, 빌드 성공)
+
+> 이번 Phase부터 **런타임 확인용 온스크린 로그** 추가(`ChattingNPCScreenLog`, Shipping no-op). PIE에서 좌상단에 상태가 표시됨.
+
+## 1. 생성한 파일
+| 파일 | 역할 |
+|---|---|
+| `Player/ChattingNPCPlayerCharacter.h/.cpp` | `AChattingNPCPlayerCharacter`(ACharacter + `INPCInteractorInterface`) |
+
+## 2. 수정한 파일
+- `ChattingNPC.h/.cpp` — 온스크린 로그 헬퍼 `ChattingNPCScreenLog()` 추가.
+- `NPC/NPCCharacter.cpp` — 오버랩 진입/이탈, 대화 시작/종료, BeginPlay에 로그 추가.
+
+## 3. 구현한 기능
+- `INPCInteractorInterface` 구현: NPC가 범위 진입/이탈 시 `NPCsInRange`에 등록/해제(로그).
+- `IA_Interact`(E) → `OnInteract`: 대화 중이면 종료, 아니면 **최근접 NPC** 선택 후 시작(토글).
+- `FindNearestNPC()` 거리제곱 비교, 무효 WeakPtr 스킵.
+- `StartConversationWith`: 프로필 검증(미지정 시 경고·중단) → NPC `StartConversation()` → 입력 잠금.
+- 입력 제한/복구 `SetConversationInputMode`: `SetIgnoreMoveInput/LookInput` + 커서 표시 + InputMode 전환(GameAndUI↔GameOnly).
+- 범위 이탈 시 현재 대화 상대면 자동 종료.
+- BP 훅 `OnConversationStartedWithNPC/OnConversationEndedWithNPC`(Phase 5에서 위젯 열기/닫기 연결).
+- 모든 주요 지점에 UE_LOG + 온스크린 로그.
+
+## 4. 핵심 코드 흐름
+NPC 범위 진입 → NPC가 `NotifyNPCEnteredRange` 호출 → 목록 등록 + "E 키로 대화" 표시.
+E 입력 → `OnInteract` → `FindNearestNPC` → `StartConversationWith`(프로필 검증 → 입력 잠금 → BP 훅).
+E 재입력/범위 이탈/버튼(Phase 5) → `EndConversation`(입력 복구 → BP 훅).
+
+## 5. 컴파일 결과
+- **성공.** `Result: Succeeded`, DLL 재링크. UHT 정상.
+
+## 6. 컴파일 못한 경우 — 해당 없음.
+
+## 7. Unreal Editor에서 직접 해야 할 작업 (⚠️ 직접 수행 필요)
+> **선행 조건**: 에디터에서 코드 리컴파일(또는 재시작)로 `AChattingNPCPlayerCharacter` 로드.
+
+**A. IA_Interact 생성**
+1. `Content/Input/Actions/`에서 우클릭 → Input → **Input Action** → 이름 `IA_Interact`.
+2. `IA_Interact` 열기 → Value Type = **Digital (bool)** → 저장.
+
+**B. IMC_Default에 E 매핑 추가**
+1. `Content/Input/IMC_Default` 열기 → Mappings에 `+` → **IA_Interact** 선택.
+2. 키를 **E** (Keyboard)로 지정 → 저장.
+
+**C. BP_ThirdPersonCharacter Reparent**
+1. `Content/ThirdPerson/Blueprints/BP_ThirdPersonCharacter` 열기.
+2. 상단 메뉴 **File → Reparent Blueprint** → **ChattingNPCPlayerCharacter** 선택.
+3. 컴파일 → 기존 Move/Look/Jump BP 이벤트가 그대로 유지되는지 확인(에러 시 재컴파일).
+4. Class Defaults의 **Input > InteractAction** 슬롯에 `IA_Interact` 지정 → 저장.
+
+> 참고: 기존 BP의 이동/점프 입력(BP EnhancedInputAction 이벤트)은 그대로 동작하며, C++는 IA_Interact만 바인딩한다.
+
+## 8. 테스트 방법
+1. `BP_NPCCharacter`를 맵에 배치(프로필은 Phase 7에서 지정 — 미지정 시 시작 시 빨간 로그로 안내).
+2. PIE 실행 → NPC에 접근 시 좌상단 "[Player] E 키로 대화: …" 표시.
+3. **E** → "[Player] 대화 시작: …" + 커서 표시 + 이동 잠금 확인.
+4. **E** 재입력 → "[Player] 대화 종료 (이동/입력 복구)" + 이동 복구 확인.
+5. 대화 중 NPC 범위 밖으로 걸어나가면 자동 종료(단, 이동이 잠겨 있으므로 이 경로는 Phase 5 UI 이후 실질 테스트).
+
+## 9. 현재 남아 있는 문제
+- 실제 채팅 UI 없음(Phase 5) — 현재 E는 대화 시작/종료 토글까지만. LLM 응답 표시는 Phase 5 연결 후.
+- Reparent/IA_Interact 지정은 에디터 수작업 필수(미완료 시 E 입력 무반응, 경고 로그로 안내됨).
+
+## 10. 다음 Phase 작업
+- **Phase 5 — 채팅 UI**: `UNPCChatWidget`(BlueprintCallable 함수 + BlueprintImplementableEvent), Subsystem 델리게이트 구독, 플레이어 `OnConversationStartedWithNPC`에서 위젯 생성/표시, 메시지 송수신·로딩·오류 표시. `WBP_NPCChat` 등 제작 절차.
+
+---
+
+# Phase 5 — 채팅 UI (완료, 빌드 성공)
+
+## 1. 생성한 파일
+| 파일 | 역할 |
+|---|---|
+| `UI/NPCChatWidget.h/.cpp` | `UNPCChatWidget`(UUserWidget, Abstract) — 대화 UI 로직 + LLM 구독 |
+
+## 2. 수정한 파일
+- `Player/ChattingNPCPlayerCharacter.h/.cpp` — `ChatWidgetClass`/`ChatWidget` 추가, 대화 시작 시 위젯 생성·표시, 종료 시 해제, 닫기 요청 핸들러.
+
+## 3. 구현한 기능
+- **BlueprintCallable 함수**: `StartConversation/SetCurrentNPC/SendPlayerMessage/EndConversation/SetWaitingForResponse/AddPlayerMessage/AddNPCMessage/ShowErrorMessage` + `IsWaitingForResponse/GetCurrentNPC`.
+- **BlueprintImplementableEvent**(WBP에서 구현): `OnConversationStarted(name,role)/OnPlayerMessageAdded/OnNPCMessageAdded/OnRequestStarted/OnRequestCompleted/OnRequestFailed/OnConversationEnded/OnWaitingForResponseChanged/OnErrorMessage`.
+- Subsystem 델리게이트(`OnResponseReceived/OnRequestFailed`) 구독 → **현재 NPCId 일치할 때만** 처리(다른 NPC 응답 무시).
+- 전송 검증: 빈 문자열/응답 대기 중 재전송 차단(오류 메시지).
+- 성공 시 NPC 메시지 추가 + 대기 해제, 실패 시 오류 표시 + 대기 해제.
+- 위젯 파괴/종료 시 구독 해제(`NativeDestruct`, `HandleConversationShutdown`) + `CancelRequest`로 늦은 응답 폐기.
+- 닫기 버튼(`EndConversation`) → `OnCloseRequested` 브로드캐스트 → 플레이어가 UI 제거·입력 복구·NPC 종료 오케스트레이션(단일 경로, 루프 없음).
+
+## 4. 핵심 코드 흐름
+플레이어 `StartConversationWith` → 위젯 생성·`AddToViewport`·`OnCloseRequested` 바인딩 → `Widget.StartConversation(NPC)`
+(SetCurrentNPC → LLM 구독 → `OnConversationStarted` → 초기 인사 `AddNPCMessage`).
+WBP 전송버튼 → `SendPlayerMessage`(검증 → `AddPlayerMessage` → 대기 ON → `SendMessageToNPC`).
+Subsystem 응답 → `HandleLLMResponse`(NPCId 일치 → `AddNPCMessage` + 대기 OFF + `OnRequestCompleted`).
+닫기버튼/E/범위이탈 → 플레이어 `EndConversation` → `Widget.HandleConversationShutdown`(구독해제·CancelRequest·`OnConversationEnded`) → RemoveFromParent → 입력 복구.
+
+## 5. 컴파일 결과
+- **성공.** `Result: Succeeded`, DLL 재링크. UHT 정상.
+
+## 6. 컴파일 못한 경우 — 해당 없음.
+
+## 7. Unreal Editor에서 직접 해야 할 작업 (⚠️ 위젯 제작)
+> 선행: 에디터 리컴파일로 `NPCChatWidget` 로드.
+
+**A. WBP_NPCChat 생성 (Content/UI/)**
+1. `Content/UI/` 폴더 생성 → 우클릭 → User Interface → **Widget Blueprint** → 부모 클래스 선택 창에서 **NPCChatWidget** 선택 → 이름 `WBP_NPCChat`.
+2. Designer에서 다음 위젯 배치(이름 자유, 아래는 예시 역할):
+   - NPC 이름 `TextBlock`, NPC 직업 `TextBlock`
+   - 대화 내용 `ScrollBox`(안에 VerticalBox), 플레이어 입력 `EditableTextBox`(또는 MultiLine)
+   - 전송 `Button`, 종료 `Button`, 로딩 표시(예: Throbber/Text), 오류 `TextBlock`
+3. **Graph에서 이벤트 구현**(부모 함수/이벤트 오버라이드):
+   - `OnConversationStarted(NPCName, NPCRole)` → 이름/직업 TextBlock에 Set Text.
+   - `OnPlayerMessageAdded(Message)` / `OnNPCMessageAdded(Message)` → ScrollBox에 한 줄 위젯 추가(또는 텍스트 append) 후 `ScrollToEnd`.
+   - `OnWaitingForResponseChanged(bWaiting)` → 로딩 표시 Visibility + 전송 Button `SetIsEnabled(!bWaiting)`.
+   - `OnErrorMessage(ErrorMessage)` / `OnRequestFailed` → 오류 TextBlock에 Set Text + 표시.
+   - `OnConversationEnded` → (선택) 정리/애니메이션.
+4. **버튼 바인딩**:
+   - 전송 Button `OnClicked` → `SendPlayerMessage`(EditableText의 GetText) → 이후 EditableText `SetText(빈값)`.
+   - (선택) EditableText `OnTextCommitted`(Enter) → 동일 처리.
+   - 종료 Button `OnClicked` → `EndConversation`.
+
+**B. (선택) 메시지 줄 위젯** `WBP_PlayerChatMessage`, `WBP_NPCChatMessage` — 한 줄 표현 분리 시 제작.
+
+**C. 플레이어에 위젯 클래스 지정**
+1. `BP_ThirdPersonCharacter`(Phase 4에서 reparent 완료) 열기 → Class Defaults.
+2. **NPC Interaction > Chat Widget Class**에 `WBP_NPCChat` 지정 → 저장.
+
+## 8. 테스트 방법
+1. llama-server 기동 + Phase 4 에디터 작업(IA_Interact/IMC/reparent/InteractAction) 완료 + WBP_NPCChat 지정.
+2. `BP_NPCCharacter`에 프로필 지정(Phase 7 DataAsset) 후 맵 배치 → PIE.
+3. NPC 접근 → E → 채팅창 열림 + NPC 이름/직업/초기 인사 표시 + 커서·이동잠금.
+4. 메시지 입력 → 전송 → 대기 표시(전송 비활성) → NPC 응답 표시.
+5. 서버 종료 후 전송 → "대화 서버에 연결할 수 없습니다." 오류 표시 + 무크래시.
+6. 종료 버튼/E → 창 닫힘 + 이동/입력 복구.
+
+## 9. 현재 남아 있는 문제
+- WBP_NPCChat 레이아웃/이벤트 바인딩은 에디터 수작업 필수(미완료 시 대화 시작해도 화면에 아무것도 안 뜸 — 빨간 로그로 안내).
+- NPC 프로필 3종(DataAsset) 및 맵 배치는 Phase 7.
+
+## 10. 다음 Phase 작업
+- **Phase 6 — 다중 NPC & 대화 기록**: NPCId별 독립 세션은 Subsystem에 이미 구현됨. Phase 6에서 다중 NPC 전환/기록 독립성/최근 10개 제한/프로필별 Temperature·MaxTokens 동작을 실사용 관점에서 점검·문서화하고, 필요 시 특정 NPC 기록 초기화 UI/명령 노출.
