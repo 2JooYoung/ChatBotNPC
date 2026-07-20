@@ -121,7 +121,9 @@ void AChattingNPCPlayerCharacter::SetupPlayerInputComponent(UInputComponent* Pla
 		}
 		if (InteractAction)
 		{
-			EIC->BindAction(InteractAction, ETriggerEvent::Triggered, this, &AChattingNPCPlayerCharacter::OnInteract);
+			// Started fires once on press (not every frame while held), so the
+			// toggle in OnInteract opens/closes exactly once per key press.
+			EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &AChattingNPCPlayerCharacter::OnInteract);
 			UE_LOG(LogChattingNPC, Log, TEXT("Player: IA_Interact bound."));
 		}
 		else

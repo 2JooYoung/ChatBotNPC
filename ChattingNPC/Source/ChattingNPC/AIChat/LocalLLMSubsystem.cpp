@@ -175,6 +175,9 @@ bool ULocalLLMSubsystem::SendMessageToNPC(UNPCProfileDataAsset* Profile, const F
 		});
 
 	Request->ProcessRequest();
+
+	UE_LOG(LogChattingNPC, Log, TEXT("Request sent to '%s' for NPC '%s' (model='%s', max_tokens=%d, timeout=%.0fs). Waiting..."),
+		*Settings->ServerUrl, *NPCId.ToString(), *Settings->ModelName, MaxTokens, Settings->RequestTimeoutSeconds);
 	return true;
 }
 

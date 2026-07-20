@@ -48,9 +48,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NPC Profile|Dialogue", meta = (MultiLine = true))
 	FText InitialGreeting;
 
-	/** Per-NPC generation tuning. */
+	/** Per-NPC generation tuning. Thinking-style models need headroom for
+	 *  internal reasoning before the answer, so keep this generous (>= 512). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NPC Profile|Generation", meta = (ClampMin = "1"))
-	int32 MaxResponseTokens = 200;
+	int32 MaxResponseTokens = 512;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NPC Profile|Generation", meta = (ClampMin = "0.0", ClampMax = "2.0"))
 	float Temperature = 0.7f;
