@@ -37,6 +37,12 @@ void ULocalLLMSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		FConsoleCommandDelegate::CreateUObject(this, &ULocalLLMSubsystem::SendTestMessage),
 		ECVF_Default);
 
+	HistoryConsoleCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("llm.history"),
+		TEXT("Log every NPC's stored conversation history (session independence / trim check)."),
+		FConsoleCommandDelegate::CreateUObject(this, &ULocalLLMSubsystem::DumpConversationHistory),
+		ECVF_Default);
+
 	UE_LOG(LogChattingNPC, Log, TEXT("LocalLLMSubsystem initialized. Type 'llm.test' in the console to verify connectivity."));
 }
 
@@ -46,6 +52,12 @@ void ULocalLLMSubsystem::Deinitialize()
 	{
 		IConsoleManager::Get().UnregisterConsoleObject(TestConsoleCommand);
 		TestConsoleCommand = nullptr;
+	}
+
+	if (HistoryConsoleCommand)
+	{
+		IConsoleManager::Get().UnregisterConsoleObject(HistoryConsoleCommand);
+		HistoryConsoleCommand = nullptr;
 	}
 
 	// In-flight HTTP callbacks capture a weak pointer to this, so pending
@@ -230,7 +242,21 @@ void ULocalLLMSubsystem::HandleResponse(FHttpResponsePtr Response, bool bConnect
 	Session.AddMessage(NPCChatRoles::Assistant, Content);
 
 	const ULocalLLMSettings* Settings = GetDefault<ULocalLLMSettings>();
-	Session.TrimHistory(Settings ? Settings->MaxHistoryMessages : 10);
+	const int32 MaxHistory = Settings ? Settings->MaxHistoryMessages : 10;
+	const int32 NumBeforeTrim = Session.Messages.Num();
+	Session.TrimHistory(MaxHistory);
+
+	const int32 NumTrimmed = NumBeforeTrim - Session.Messages.Num();
+	if (NumTrimmed > 0)
+	{
+		UE_LOG(LogChattingNPC, Log, TEXT("[%s] history full: dropped %d oldest message(s)."),
+			*NPCId.ToString(), NumTrimmed);
+	}
+	UE_LOG(LogChattingNPC, Log, TEXT("[%s] history: %d/%d messages stored."),
+		*NPCId.ToString(), Session.Messages.Num(), MaxHistory);
+	ChattingNPCScreenLog(FString::Printf(TEXT("[대화기록] %s: %d/%d%s"),
+		*NPCId.ToString(), Session.Messages.Num(), MaxHistory,
+		NumTrimmed > 0 ? TEXT(" (오래된 기록 제거됨)") : TEXT("")), FColor::Emerald);
 
 	OnResponseReceived.Broadcast(NPCId, Content);
 }
@@ -283,10 +309,32 @@ void ULocalLLMSubsystem::SendTestMessage()
 	TestProfile->Background = TEXT("작은 마을의 안내를 맡고 있다.");
 	TestProfile->KnownInformation = { TEXT("마을 지리"), TEXT("주민들") };
 	TestProfile->Temperature = 0.7f;
-	TestProfile->MaxResponseTokens = 200;
+	// Thinking-style models need reasoning headroom; must match the 512 default.
+	TestProfile->MaxResponseTokens = 512;
 
 	UE_LOG(LogChattingNPC, Log, TEXT("Sending test message to local LLM..."));
 	SendMessageToNPC(TestProfile, TEXT("안녕하세요, 이 마을에 대해 간단히 알려줄 수 있나요?"));
+}
+
+void ULocalLLMSubsystem::DumpConversationHistory()
+{
+	UE_LOG(LogChattingNPC, Log, TEXT("=== Conversation history: %d session(s) ==="), Sessions.Num());
+	ChattingNPCScreenLog(FString::Printf(TEXT("[대화기록 덤프] 세션 %d개 — 자세한 내용은 Output Log 참고"), Sessions.Num()), FColor::Yellow, 6.0f);
+
+	for (const TPair<FName, FNPCConversationSession>& Pair : Sessions)
+	{
+		const FNPCConversationSession& Session = Pair.Value;
+		UE_LOG(LogChattingNPC, Log, TEXT("--- [%s] %d message(s) (in-flight: %s) ---"),
+			*Pair.Key.ToString(), Session.Messages.Num(),
+			InFlightRequests.Contains(Pair.Key) ? TEXT("yes") : TEXT("no"));
+
+		for (int32 Index = 0; Index < Session.Messages.Num(); ++Index)
+		{
+			const FNPCChatMessage& Message = Session.Messages[Index];
+			UE_LOG(LogChattingNPC, Log, TEXT("  %2d. [%s] %s"),
+				Index + 1, *Message.Role, *Message.Content.Left(120));
+		}
+	}
 }
 
 void ULocalLLMSubsystem::HandleDebugResponse(FName NPCId, const FString& Response)

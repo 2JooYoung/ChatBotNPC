@@ -80,6 +80,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Local LLM|Debug")
 	void SendTestMessage();
 
+	/** Logs every NPC's stored history (count + each turn) for in-game verification. */
+	UFUNCTION(BlueprintCallable, Category = "Local LLM|Debug")
+	void DumpConversationHistory();
+
 private:
 	FNPCConversationSession& GetOrCreateSession(FName NPCId);
 
@@ -114,4 +118,5 @@ private:
 	TObjectPtr<UNPCProfileDataAsset> TestProfile;
 
 	IConsoleObject* TestConsoleCommand = nullptr;
+	IConsoleObject* HistoryConsoleCommand = nullptr;
 };
