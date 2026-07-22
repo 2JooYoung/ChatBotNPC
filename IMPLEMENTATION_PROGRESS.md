@@ -23,6 +23,46 @@
 
 ---
 
+# 🖥️ 다른 컴퓨터에서 이어서 하기 (핸드오프, 2026-07-22 갱신)
+
+> 이 섹션만 읽으면 다른 PC에서 환경을 재구성하고 바로 이어서 작업할 수 있다.
+> **현재 상태**: MVP 완료·커밋 완료, 미커밋 코드 변경 없음. 다음 작업은 아래 §"다음 작업: 파이썬 서버 도입".
+
+## 1. git에 있는 것 vs 별도로 옮겨야 하는 것
+- **GitHub 리포**: `https://github.com/2JooYoung/ChatBotNPC.git` (branch `main`)
+  - 포함: UE 프로젝트(`ChattingNPC/` — `.uproject`, `Config/`, `Content/` .uasset, `Source/` C++), 이 문서, `CLAUDE.md`.
+  - **git으로 코드/에셋 전부 이동됨.** 다른 PC는 `git clone`만 하면 프로젝트 자체는 확보.
+- **git에 없음(용량 때문에 .gitignore 처리) → 수동 복사 필요**:
+  1. **모델 파일** `model/gemma-4-E2B-it-Q8_0.gguf` (**약 5.0GB**) — zip에도 안 들어감. USB/네트워크로 직접 복사하거나 원본에서 재다운로드.
+  2. **llama 바이너리 폴더** 2종: `llama-b10038-bin-win-cuda-12.4-x64/`(GPU용), `llama-b10034-bin-win-cpu-x64/`(CPU 폴백).
+     → `Chatbot LocalLLM.zip`(약 674MB)에 이 2개가 들어 있음. 압축 풀어 리포 루트에 배치.
+  - 배치 후 리포 루트 구조: `ChattingNPC/`, `model/gemma-...gguf`, `llama-b10038-...cuda-12.4-x64/`, `llama-b10034-...cpu-x64/`.
+
+## 2. 새 PC 셋업 순서
+1. `git clone https://github.com/2JooYoung/ChatBotNPC.git` (또는 pull).
+2. 모델 파일과 llama 바이너리 폴더를 §1대로 리포 루트에 복사.
+3. **UE 5.7** 설치 확인 → `ChattingNPC/ChattingNPC.uproject` 우클릭 → **Generate Visual Studio project files** → 빌드(또는 에디터 첫 실행 시 모듈 리빌드 수락). C++ 모듈이라 첫 빌드 필요.
+4. **llama-server 기동**(GPU):
+   `llama-b10038-bin-win-cuda-12.4-x64\llama-server.exe -m ..\model\gemma-4-E2B-it-Q8_0.gguf --host 127.0.0.1 --port 8080`
+   - GPU 없으면 `llama-b10034-bin-win-cpu-x64`로 동일 실행(느림, 타임아웃 120s 내).
+   - 기동 후 `curl http://127.0.0.1:8080/health` → `{"status":"ok"}` 확인.
+5. 에디터에서 PIE 실행 → NPC 접근·E·대화로 동작 확인.
+
+## 3. GPU 사용 시 주의 (겪은 이슈)
+- CUDA 12.4 빌드 필요. 드라이버가 낮아 CUDA 13.x가 안 잡히면 GPU 미탑재(CPU 동작)됨 — 상세는 아래 §"트러블슈팅 기록 C" 참조.
+- `gemma-4-E2B-it`는 **thinking 모델** → `MaxResponseTokens ≥ 512` 필수(그 이하면 응답이 빈 문자열).
+- 서버가 소리 없이 죽는 경우 있음 → 이상하면 `health`부터 확인.
+
+## 4. UE 설정 조정 지점
+- Project Settings > Game > **Local LLM Settings**: ServerUrl / 모델명 / Temperature / MaxTokens(512) / 기록개수(10) / 타임아웃(120s).
+- 코드 기본값: `Source/ChattingNPC/AIChat/LocalLLMSettings.h`.
+
+## 5. 참고
+- `Chatbot LocalLLM.zip` / `Chatbot LocalLLM/` 폴더는 **바이너리 전송용 로컬 묶음** — git에 커밋하지 않음(.gitignore 처리).
+- 상세 재개 정보(파이썬 서버)는 문서 맨 아래 §"다음 작업: 파이썬 서버 도입" 참조.
+
+---
+
 # Phase 1 — 프로젝트 확인 및 기반 설계 (완료)
 
 > 이 단계에서는 **코드를 생성/수정하지 않았다.** 프로젝트 구조 확인과 전체 구현 계획 수립만 수행.

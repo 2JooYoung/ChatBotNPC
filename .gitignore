@@ -31,6 +31,10 @@
 llama-*-bin-win-*/
 **/llama-*-bin-win-*/
 
+# Local transfer bundle (llama binaries zipped for moving between PCs)
+Chatbot LocalLLM.zip
+Chatbot LocalLLM/
+
 model/
 models/
 **/model/
