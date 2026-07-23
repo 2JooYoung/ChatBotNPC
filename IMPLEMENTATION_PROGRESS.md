@@ -656,3 +656,63 @@ uvicorn main:app --host 127.0.0.1 --port 8000
 2. curl로 :8000에 채팅 요청 → :8080 직접 요청과 동일한 응답 확인.
 3. UE ServerUrl을 :8000으로 변경 → PIE에서 NPC 대화 정상 동작 확인 (`llm.test`).
 4. `/stt` 스텁 호출 → 의도한 "미구현" 응답 확인.
+
+---
+
+# 파이썬 프록시 서버 (골격) — 완료 (2026-07-23)
+
+> 위 §"다음 작업: 파이썬 서버 도입"의 **A안(프록시) + 골격만** 범위를 구현·검증. STT 실연동은 다음 단계.
+> 상세 계획: `C:\Users\user\.claude\plans\memoized-splashing-lampson.md`.
+
+## 1. 생성한 파일 (리포 루트 `python_server/`)
+| 파일 | 역할 |
+|---|---|
+| `python_server/main.py` | FastAPI 앱: `/health`, `/v1/chat/completions` 중계, `/stt` 스텁 |
+| `python_server/requirements.txt` | `fastapi`, `uvicorn[standard]`, `httpx` |
+| `python_server/README.md` | 실행법·엔드포인트·UE 연결 안내 |
+
+## 2. 수정한 파일 — 없음.
+- `.gitignore`에 `.venv/`·`__pycache__/`가 이미 있어 추가 불필요. UE 코드 무변경.
+
+## 3. 구현한 기능
+- `GET /health` → `{"status":"ok"}`.
+- `POST /v1/chat/completions`: 요청 body(bytes)를 **읽은 그대로** httpx로 llama-server에 POST, 응답 status/body/content-type를 **변형 없이** 반환. max_tokens·stream·content 등 무개입(thinking 모델 대응).
+- 중계 대상은 `LLAMA_UPSTREAM` 환경변수(기본 `http://127.0.0.1:8080`) — 하드코딩 없음.
+- httpx `timeout=None` → 프록시가 UE(120s)보다 먼저 끊지 않음.
+- upstream 연결 실패 시 **502** 반환(UE "서버 연결 불가" 처리와 호환).
+- `POST /stt` → **501** `{"error":"미구현"}` (향후 STT 자리 확보).
+
+## 4. 환경 구성 (수행 완료)
+- Python 3.11.9 확인 → `python -m venv .venv` → `pip install -r requirements.txt`.
+- 설치: fastapi 0.139.2 / uvicorn 0.51.0 / httpx 0.28.1.
+- 기동: `uvicorn main:app --host 127.0.0.1 --port 8000`.
+
+## 5. 검증 결과
+| # | 항목 | 결과 |
+|---|---|---|
+| 1 | `curl :8080/health` | ✅ `{"status":"ok"}` (GPU 빌드 기동) |
+| 2 | `curl :8000/health` | ✅ `{"status":"ok"}` |
+| 3 | 동일 채팅요청 :8080 vs :8000 | ✅ **동일 구조**·유효 한국어·`finish_reason:"stop"` (content는 temp 0.7로 문장만 다름) |
+| 4 | `POST :8000/stt` | ✅ HTTP 501 `{"error":"미구현"}` |
+| 5 | llama 종료 상태 `POST :8000/v1/chat/completions` | ✅ HTTP 502 `upstream 연결 실패` |
+| 6 | UE ServerUrl → :8000 후 PIE 실대화 | ⏳ **에디터 수작업 필요**(아래 §6) — 미검증 |
+
+> 주의: curl로 한글 요청 시 셸 인코딩 이슈로 llama가 UTF-8 파싱 에러(500)를 낼 수 있음 → 요청 body를
+> **UTF-8 파일**에 저장 후 `--data-binary @파일`로 전송해야 정상. (프록시/서버 문제 아님, 테스트 방식 문제.)
+
+## 6. Unreal Editor에서 직접 해야 할 작업 (⚠️ 미완료 — 사용자 수행)
+1. Project Settings > Game > **Local LLM Settings > ServerUrl**을
+   `http://127.0.0.1:8000/v1/chat/completions`로 변경(기존 `:8080` → `:8000`).
+2. llama-server(:8080) + python_server(:8000) 둘 다 기동.
+3. PIE 실행 → 콘솔 `llm.test` 및 NPC 실대화 정상 확인.
+4. (원복 시) ServerUrl을 다시 `:8080`으로 되돌리면 프록시 미경유 직접 연결.
+
+## 7. 실행 순서 (운영)
+1. llama-server(:8080) 기동 → `curl :8080/health` ok.
+2. `cd python_server` → `.venv\Scripts\activate` → `uvicorn main:app --host 127.0.0.1 --port 8000`.
+3. UE ServerUrl `:8000` 지정(§6) → PIE.
+
+## 8. 현재 남아 있는 문제 / 다음 단계
+- UE ServerUrl 변경 후 PIE 실대화(§5 #6)는 에디터 수작업이라 이번에 미검증 — 사용자 확인 필요.
+- `/stt`는 스텁뿐 → 다음 단계에서 faster-whisper 등 실연동 + UE 마이크 캡처.
+- 확장 후보: `/tts`, 대화 요약(장기 기억) 엔드포인트를 같은 프록시에 추가.
