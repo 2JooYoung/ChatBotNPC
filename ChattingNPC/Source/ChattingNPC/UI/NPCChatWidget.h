@@ -104,6 +104,7 @@ private:
 	void HandleLLMFailure(FName NPCId, const FString& UserMessage, int32 StatusCode);
 
 	class ULocalLLMSubsystem* GetLLM() const;
+	class UNPCVoiceSubsystem* GetVoice() const;
 	void SubscribeToLLM();
 	void UnsubscribeFromLLM();
 

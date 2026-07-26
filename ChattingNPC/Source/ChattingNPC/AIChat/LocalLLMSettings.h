@@ -43,5 +43,17 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Local LLM", meta = (ClampMin = "1.0"))
 	float RequestTimeoutSeconds;
 
+	/** Play NPC replies as speech via the python_server /tts endpoint. */
+	UPROPERTY(Config, EditAnywhere, Category = "Local LLM|TTS")
+	bool bEnableTts;
+
+	/** TTS endpoint (python_server). Empty disables voice regardless of bEnableTts. */
+	UPROPERTY(Config, EditAnywhere, Category = "Local LLM|TTS")
+	FString TtsServerUrl;
+
+	/** HTTP request timeout for a TTS synthesis call, in seconds. */
+	UPROPERTY(Config, EditAnywhere, Category = "Local LLM|TTS", meta = (ClampMin = "1.0"))
+	float TtsRequestTimeoutSeconds;
+
 	virtual FName GetCategoryName() const override { return TEXT("Plugins"); }
 };

@@ -13,4 +13,9 @@ ULocalLLMSettings::ULocalLLMSettings()
 	MaxHistoryMessages = 10;
 	// Local CPU inference can be slow; 120s is a safer default than 30s.
 	RequestTimeoutSeconds = 120.0f;
+
+	// Voice (TTS) is opt-in; requires python_server running with MeloTTS loaded.
+	bEnableTts = false;
+	TtsServerUrl = TEXT("http://127.0.0.1:8000/tts");
+	TtsRequestTimeoutSeconds = 60.0f;
 }

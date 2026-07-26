@@ -1,0 +1,508 @@
+<title>ChattingNPC — 시스템 아키텍처</title>
+<style>
+  :root {
+    --ground: #14110e;
+    --surface: #1e1a15;
+    --surface-2: #262019;
+    --ink: #ede6da;
+    --muted: #a99e8c;
+    --faint: #7a7062;
+    --line: #352e25;
+    --line-strong: #4a4033;
+    --ember: #ea9a3e;        /* 텍스트/LLM 파이프라인 */
+    --ember-dim: #7a5220;
+    --signal: #46bcae;       /* 음성/TTS 파이프라인 */
+    --signal-dim: #1f5f58;
+    --ok: #7cb87a;
+    --shadow: rgba(0,0,0,.45);
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #ede8de;
+      --surface: #f6f2ea;
+      --surface-2: #efe9df;
+      --ink: #26211a;
+      --muted: #6c6355;
+      --faint: #948a7a;
+      --line: #ddd5c7;
+      --line-strong: #c9bfad;
+      --ember: #b06d13;
+      --ember-dim: #d9a355;
+      --signal: #1a8578;
+      --signal-dim: #6fc0b6;
+      --ok: #3f8a3c;
+      --shadow: rgba(80,66,40,.14);
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #14110e; --surface: #1e1a15; --surface-2: #262019;
+    --ink: #ede6da; --muted: #a99e8c; --faint: #7a7062;
+    --line: #352e25; --line-strong: #4a4033;
+    --ember: #ea9a3e; --ember-dim: #7a5220;
+    --signal: #46bcae; --signal-dim: #1f5f58;
+    --ok: #7cb87a; --shadow: rgba(0,0,0,.45); color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --ground: #ede8de; --surface: #f6f2ea; --surface-2: #efe9df;
+    --ink: #26211a; --muted: #6c6355; --faint: #948a7a;
+    --line: #ddd5c7; --line-strong: #c9bfad;
+    --ember: #b06d13; --ember-dim: #d9a355;
+    --signal: #1a8578; --signal-dim: #6fc0b6;
+    --ok: #3f8a3c; --shadow: rgba(80,66,40,.14); color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: 'Pretendard', system-ui, 'Segoe UI', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .wrap { max-width: 940px; margin: 0 auto; padding: 0 24px; }
+
+  .mono { font-family: 'Cascadia Code', 'JetBrains Mono', 'D2Coding', ui-monospace, 'Consolas', monospace; }
+
+  .eyebrow {
+    font-family: 'Cascadia Code', 'JetBrains Mono', ui-monospace, 'Consolas', monospace;
+    font-size: .72rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--faint); font-weight: 600;
+  }
+
+  h1, h2, h3 { font-family: 'Cascadia Code', 'JetBrains Mono', 'D2Coding', ui-monospace, 'Consolas', monospace; text-wrap: balance; }
+
+  a { color: var(--ember); }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    border-bottom: 1px solid var(--line);
+    background:
+      radial-gradient(120% 80% at 85% -10%, color-mix(in oklab, var(--ember) 14%, transparent), transparent 60%),
+      radial-gradient(90% 70% at 5% 0%, color-mix(in oklab, var(--signal) 10%, transparent), transparent 55%);
+  }
+  .hero-inner { padding: 88px 0 68px; }
+  .hero h1 {
+    font-size: clamp(2.3rem, 6.2vw, 4rem);
+    line-height: 1.04; margin: 20px 0 0; letter-spacing: -.01em; font-weight: 700;
+  }
+  .hero h1 .amber { color: var(--ember); }
+  .hero h1 .teal { color: var(--signal); }
+  .hero .lede {
+    margin: 26px 0 0; max-width: 60ch; font-size: 1.12rem; color: var(--muted);
+  }
+  .stack-strip {
+    display: flex; flex-wrap: wrap; gap: 10px; margin-top: 36px;
+  }
+  .chip {
+    font-family: 'Cascadia Code', 'JetBrains Mono', ui-monospace, 'Consolas', monospace;
+    font-size: .8rem; padding: 7px 12px; border: 1px solid var(--line-strong);
+    border-radius: 999px; color: var(--ink); background: var(--surface);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .chip .dot.a { background: var(--ember); }
+  .chip .dot.t { background: var(--signal); }
+
+  /* ---------- sections ---------- */
+  section { padding: 66px 0; border-bottom: 1px solid var(--line); }
+  .sec-head { margin-bottom: 34px; }
+  .sec-head h2 { font-size: clamp(1.4rem, 3.4vw, 2rem); margin: 10px 0 0; font-weight: 700; }
+  .sec-head p { margin: 12px 0 0; color: var(--muted); max-width: 62ch; }
+
+  /* ---------- architecture flow ---------- */
+  .flow { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+  .node {
+    background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: 14px; padding: 20px 22px; box-shadow: 0 2px 0 var(--shadow);
+  }
+  .node .node-title {
+    font-family: 'Cascadia Code', 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 10px;
+  }
+  .node .node-sub { color: var(--muted); font-size: .9rem; margin-top: 4px; }
+  .badge {
+    font-family: 'Cascadia Code', ui-monospace, monospace; font-size: .66rem;
+    letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px;
+    border: 1px solid var(--line-strong); color: var(--faint);
+  }
+  .subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .subnode {
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--surface-2);
+    font-size: .9rem;
+  }
+  .subnode .k {
+    font-family: 'Cascadia Code', ui-monospace, monospace; font-size: .82rem; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .subnode .k::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--faint); }
+  .subnode.amber .k::before { background: var(--ember); }
+  .subnode.teal .k::before { background: var(--signal); }
+  .subnode .v { color: var(--muted); font-size: .82rem; margin-top: 3px; }
+
+  /* pipes */
+  .pipes { display: flex; gap: 18px; padding: 8px 0; }
+  .pipe { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0; }
+  .pipe .rail {
+    position: relative; width: 2px; height: 46px; border-radius: 2px;
+    background: linear-gradient(var(--railcol), transparent);
+    overflow: visible;
+  }
+  .pipe.amber { --railcol: var(--ember); }
+  .pipe.teal  { --railcol: var(--signal); }
+  .pipe .rail::after {
+    content: ""; position: absolute; left: 50%; bottom: -1px; transform: translateX(-50%);
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 7px solid var(--railcol);
+  }
+  .pipe .flowdot {
+    position: absolute; left: 50%; top: 0; width: 6px; height: 6px; margin-left: -3px;
+    border-radius: 50%; background: var(--railcol);
+    box-shadow: 0 0 8px var(--railcol);
+    animation: travel 2.2s linear infinite;
+  }
+  .pipe.teal .flowdot { animation-delay: 1.1s; }
+  @keyframes travel { from { top: -2px; opacity: 0; } 15%{opacity:1;} 85%{opacity:1;} to { top: 42px; opacity: 0; } }
+  .pipe .plabel {
+    font-family: 'Cascadia Code', ui-monospace, monospace; font-size: .72rem;
+    color: var(--muted); background: var(--surface); border: 1px solid var(--line);
+    padding: 4px 9px; border-radius: 7px; white-space: nowrap;
+  }
+  .pipe.amber .plabel { color: var(--ember); border-color: color-mix(in oklab, var(--ember) 40%, var(--line)); }
+  .pipe.teal .plabel  { color: var(--signal); border-color: color-mix(in oklab, var(--signal) 40%, var(--line)); }
+
+  .engines { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .engine { border-radius: 14px; padding: 18px 20px; border: 1px solid var(--line-strong); background: var(--surface); }
+  .engine.amber { border-top: 3px solid var(--ember); }
+  .engine.teal  { border-top: 3px solid var(--signal); }
+  .engine h3 { margin: 0; font-size: .98rem; }
+  .engine .meta { color: var(--muted); font-size: .84rem; margin-top: 6px; }
+  .engine .out {
+    font-family: 'Cascadia Code', ui-monospace, monospace; font-size: .74rem; margin-top: 12px;
+    color: var(--faint);
+  }
+
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 26px; font-size: .84rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend i { width: 22px; height: 3px; border-radius: 2px; display: inline-block; }
+  .legend i.a { background: var(--ember); }
+  .legend i.t { background: var(--signal); }
+
+  /* ---------- two pipelines ---------- */
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .pcard { border: 1px solid var(--line-strong); border-radius: 14px; padding: 22px; background: var(--surface); }
+  .pcard.amber { border-left: 4px solid var(--ember); }
+  .pcard.teal  { border-left: 4px solid var(--signal); }
+  .pcard h3 { margin: 0 0 4px; font-size: 1.05rem; }
+  .pcard .tag { font-family: 'Cascadia Code', ui-monospace, monospace; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; }
+  .pcard.amber .tag { color: var(--ember); }
+  .pcard.teal .tag { color: var(--signal); }
+  .steps { list-style: none; margin: 16px 0 0; padding: 0; counter-reset: s; display: flex; flex-direction: column; gap: 11px; }
+  .steps li { position: relative; padding-left: 34px; font-size: .93rem; color: var(--ink); }
+  .steps li::before {
+    counter-increment: s; content: counter(s); position: absolute; left: 0; top: -1px;
+    width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
+    font-family: 'Cascadia Code', ui-monospace, monospace; font-size: .74rem; font-weight: 700;
+    background: var(--surface-2); border: 1px solid var(--line-strong); color: var(--muted);
+  }
+  .pcard.amber .steps li::before { color: var(--ember); }
+  .pcard.teal .steps li::before { color: var(--signal); }
+
+  /* ---------- NPC cards ---------- */
+  .npcs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .npc { border: 1px solid var(--line-strong); border-radius: 14px; padding: 18px; background: var(--surface); position: relative; overflow: hidden; }
+  .npc::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--accent, var(--faint)); }
+  .npc .role { font-family: 'Cascadia Code', ui-monospace, monospace; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+  .npc .name { font-family: 'Cascadia Code', ui-monospace, monospace; font-weight: 700; font-size: 1.25rem; margin: 4px 0 10px; }
+  .npc .line { font-size: .86rem; color: var(--muted); }
+  .npc .quote { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line-strong); font-size: .9rem; color: var(--ink); font-style: italic; }
+
+  /* ---------- challenge timeline ---------- */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl { display: grid; grid-template-columns: 40px 1fr; gap: 16px; padding-bottom: 26px; position: relative; }
+  .tl:not(:last-child)::before { content: ""; position: absolute; left: 19px; top: 34px; bottom: -4px; width: 2px; background: var(--line-strong); }
+  .tl .num {
+    width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+    font-family: 'Cascadia Code', ui-monospace, monospace; font-weight: 700; font-size: .9rem;
+    background: var(--surface); border: 1px solid var(--line-strong); color: var(--ember); z-index: 1;
+  }
+  .tl .body h3 { margin: 6px 0 4px; font-size: 1rem; }
+  .tl .body p { margin: 0; color: var(--muted); font-size: .92rem; }
+  .tl .body code {
+    font-family: 'Cascadia Code', ui-monospace, monospace; font-size: .82em;
+    background: var(--surface-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; color: var(--ink);
+  }
+
+  /* ---------- stack table ---------- */
+  .stack-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  .stack-table td { padding: 13px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .stack-table tr td:first-child {
+    font-family: 'Cascadia Code', ui-monospace, monospace; font-size: .8rem; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--faint); white-space: nowrap; width: 34%;
+  }
+  .stack-table tr td:last-child { color: var(--ink); }
+
+  footer { padding: 44px 0 60px; }
+  footer .verdict {
+    font-family: 'Cascadia Code', ui-monospace, monospace; font-size: .9rem; color: var(--muted);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  footer .verdict b { color: var(--ok); }
+  .note { color: var(--faint); font-size: .82rem; margin-top: 10px; }
+
+  @media (max-width: 720px) {
+    .subgrid, .engines, .cols2, .npcs { grid-template-columns: 1fr; }
+    .hero-inner { padding: 64px 0 48px; }
+    section { padding: 52px 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pipe .flowdot { animation: none; opacity: .9; top: 18px; }
+  }
+</style>
+
+<header class="hero">
+  <div class="wrap hero-inner">
+    <div class="eyebrow">Unreal Engine 5.7 · 로컬 AI · 오프라인</div>
+    <h1>말을 걸면 대답하고,<br><span class="amber">자기 성격대로</span> <span class="teal">목소리</span>로 들려주는 NPC</h1>
+    <p class="lede">
+      플레이어가 마을의 여러 NPC에게 말을 걸면, 각 NPC가 자신의 성격·지식에 맞춰 한국어로 대답하고
+      그 대사를 음성으로 재생한다. 대화 생성(LLM)과 음성 합성(TTS) 모두 <b>로컬에서</b> 구동 —
+      외부 API·인터넷 없이 동작하는 오프라인 AI 파이프라인.
+    </p>
+    <div class="stack-strip">
+      <span class="chip"><span class="dot"></span>Unreal Engine 5.7 · C++</span>
+      <span class="chip"><span class="dot a"></span>gemma-4-E2B-it (llama.cpp)</span>
+      <span class="chip"><span class="dot t"></span>MeloTTS · 한국어</span>
+      <span class="chip"><span class="dot"></span>FastAPI 프록시</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">System Architecture</div>
+      <h2>하나의 프록시로 게임과 AI를 분리</h2>
+      <p>게임(UE)은 “어디로 요청할지”만 알면 된다. 채팅·음성·(향후)음성인식을 모두 파이썬 프록시 한 곳에
+        모아, UE 코드를 거의 건드리지 않고 기능을 계속 붙일 수 있게 설계했다.</p>
+    </div>
+
+    <div class="flow">
+      <div class="node">
+        <div class="node-title">🎮 Unreal Engine 5.7 <span class="badge">게임 · C++</span></div>
+        <div class="node-sub">플레이어 상호작용 · 대화 UI · 두 개의 게임플레이 서브시스템</div>
+        <div class="subgrid">
+          <div class="subnode"><div class="k">Player · E키 → Chat Widget</div><div class="v">근접 감지, 커서/이동 잠금, 대사 표시</div></div>
+          <div class="subnode"><div class="k">NPCChatWidget</div><div class="v">메시지 송수신 · 응답/음성 트리거</div></div>
+          <div class="subnode amber"><div class="k">LocalLLMSubsystem</div><div class="v">프롬프트 조립 · 세션 · 텍스트 요청</div></div>
+          <div class="subnode teal"><div class="k">NPCVoiceSubsystem</div><div class="v">대사 → 음성 요청 · WAV 재생</div></div>
+        </div>
+      </div>
+
+      <div class="pipes">
+        <div class="pipe amber">
+          <div class="plabel">POST /v1/chat/completions</div>
+          <div class="rail"><span class="flowdot"></span></div>
+        </div>
+        <div class="pipe teal">
+          <div class="plabel">POST /tts</div>
+          <div class="rail"><span class="flowdot"></span></div>
+        </div>
+      </div>
+
+      <div class="node">
+        <div class="node-title">🐍 Python FastAPI 프록시 <span class="badge">127.0.0.1 : 8000</span></div>
+        <div class="node-sub">채팅은 변형 없이 중계, 음성은 로컬 합성. 확장 지점(STT/요약)이 한 곳으로 모임.</div>
+        <div class="subgrid">
+          <div class="subnode amber"><div class="k">/v1/chat/completions</div><div class="v">llama-server로 그대로 passthrough</div></div>
+          <div class="subnode teal"><div class="k">/tts</div><div class="v">MeloTTS로 한국어 WAV 합성</div></div>
+          <div class="subnode"><div class="k">/stt</div><div class="v">향후 음성→텍스트 (자리 확보)</div></div>
+          <div class="subnode"><div class="k">/health</div><div class="v">상태 · TTS 로드 여부</div></div>
+        </div>
+      </div>
+
+      <div class="pipes">
+        <div class="pipe amber">
+          <div class="plabel">중계</div>
+          <div class="rail"><span class="flowdot"></span></div>
+        </div>
+        <div class="pipe teal">
+          <div class="plabel">로컬 합성</div>
+          <div class="rail"><span class="flowdot"></span></div>
+        </div>
+      </div>
+
+      <div class="engines">
+        <div class="engine amber">
+          <h3>llama-server · gemma-4-E2B-it</h3>
+          <div class="meta">OpenAI 호환 API · GPU(RTX 3060) · thinking 모델(max_tokens ≥ 512)</div>
+          <div class="out">→ 대사 텍스트</div>
+        </div>
+        <div class="engine teal">
+          <h3>MeloTTS · 한국어</h3>
+          <div class="meta">VITS2 기반 · CPU 실시간(~1×) · 오프라인</div>
+          <div class="out">→ 16-bit PCM mono WAV (44.1 kHz)</div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span><i class="a"></i> 텍스트 파이프라인 (대화 생성)</span>
+        <span><i class="t"></i> 음성 파이프라인 (TTS)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Data Flow</div>
+      <h2>두 개의 독립 파이프라인</h2>
+      <p>대사(텍스트)는 즉시 화면에 뜨고, 음성은 준비되는 대로 재생된다 — 서로를 막지 않는다.
+        음성 합성이 실패해도 대화는 끊기지 않는다.</p>
+    </div>
+
+    <div class="cols2">
+      <div class="pcard amber">
+        <div class="tag">Text · 대화</div>
+        <h3>플레이어 질문 → NPC 대사</h3>
+        <ol class="steps">
+          <li>E키로 대화 시작 → 초기 인사 표시, 입력 잠금.</li>
+          <li>시스템 프롬프트(성격·지식·금지) + 최근 기록 + 메시지를 OpenAI 형식으로 조립.</li>
+          <li>프록시가 llama-server로 그대로 중계 → 대사 생성.</li>
+          <li>현재 NPC의 응답만 필터링해 UI에 표시.</li>
+        </ol>
+      </div>
+      <div class="pcard teal">
+        <div class="tag">Voice · 음성</div>
+        <h3>NPC 대사 → 한국어 음성</h3>
+        <ol class="steps">
+          <li>대사가 확정되면 그 텍스트를 <span class="mono">/tts</span>로 전송.</li>
+          <li>MeloTTS가 한국어 음성(WAV)을 합성해 반환.</li>
+          <li>UE가 WAV 헤더를 파싱(FWaveModInfo)해 PCM 추출.</li>
+          <li>USoundWaveProcedural로 <b>NPC 위치에서 3D 재생</b>. 실패는 조용히 무시.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Characters</div>
+      <h2>NPC마다 다른 성격 · 독립된 기억</h2>
+      <p>각 NPC는 데이터 자산(Profile)으로 정의된다. 같은 질문에도 말투가 다르고, 대화 기록은
+        NPC별로 분리 저장되어 서로 섞이지 않는다.</p>
+    </div>
+    <div class="npcs">
+      <div class="npc" style="--accent: var(--ember)">
+        <div class="role">대장장이</div>
+        <div class="name">로버트</div>
+        <div class="line">무뚝뚝하지만 책임감. 짧고 단호한 말투. 무기·철광석·광산에 밝다.</div>
+        <div class="quote">“무슨 일이지? 필요한 게 있나?”</div>
+      </div>
+      <div class="npc" style="--accent: var(--signal)">
+        <div class="role">상인</div>
+        <div class="name">미아</div>
+        <div class="line">친절하지만 계산적. 적극·과장된 말투. 상품·가격·마을 소문에 밝다.</div>
+        <div class="quote">“어서 와요! 오늘은 좋은 물건이 많답니다.”</div>
+      </div>
+      <div class="npc" style="--accent: var(--faint)">
+        <div class="role">경비병</div>
+        <div class="name">에릭</div>
+        <div class="line">엄격·책임감. 공식적이고 딱딱한 말투. 출입 규칙·치안·성문을 안다.</div>
+        <div class="quote">“용무를 밝히시오.”</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Engineering Log</div>
+      <h2>한국어 TTS를 Windows에 올리기까지</h2>
+      <p>“한국어 되는 로컬 TTS”를 붙이는 과정에서 실제로 뚫은 벽들. 계약(입출력 규격)을 먼저 고정해,
+        엔진을 나중에 바꿔도 UE 코드는 그대로 쓰도록 설계했다.</p>
+    </div>
+    <div class="timeline">
+      <div class="tl">
+        <div class="num">01</div>
+        <div class="body">
+          <h3>엔진 오선택 정정</h3>
+          <p>처음 고른 Kokoro-82M이 공식적으로 <b>한국어 미지원</b>임을 발견 → 한국어를 정식 지원하는
+            <b>MeloTTS</b>(MIT, CPU 실시간)로 교체.</p>
+        </div>
+      </div>
+      <div class="tl">
+        <div class="num">02</div>
+        <div class="body">
+          <h3>Python 3.12 설치 실패</h3>
+          <p>MeloTTS의 구버전 의존성(<code>tokenizers</code>·<code>fugashi</code>)이 3.12용 wheel이 없어
+            소스 빌드에 실패 → <b>Python 3.11</b>로 전환해 해결.</p>
+        </div>
+      </div>
+      <div class="tl">
+        <div class="num">03</div>
+        <div class="body">
+          <h3>의존성 충돌 3종</h3>
+          <p><code>librosa</code>의 <code>pkg_resources</code> 누락은 <code>setuptools&lt;80</code>으로 복원.
+            한국어 G2P가 요구하는 <code>eunjeon</code>은 Windows 빌드 실패, 대체재
+            <code>python-mecab-ko</code>는 <code>mecab-python3</code>와 대소문자 폴더 충돌.</p>
+        </div>
+      </div>
+      <div class="tl">
+        <div class="num">04</div>
+        <div class="body">
+          <h3>kiwipiepy 어댑터로 우회</h3>
+          <p>wheel이 깔끔한 <code>kiwipiepy</code>(형태소 분석기)를 <code>eunjeon.Mecab</code> 인터페이스로
+            감싸는 얇은 어댑터를 만들어 주입 → 한국어 발음 규칙 처리를 복원.</p>
+        </div>
+      </div>
+      <div class="tl">
+        <div class="num">05</div>
+        <div class="body">
+          <h3>계약 기반 통합 검증</h3>
+          <p><code>POST /tts → 200 · audio/wav</code> (mono·16bit·44.1kHz) · <b>CPU 실시간(~1×)</b> 한국어
+            합성 확인. UE는 이 WAV 계약만 알면 되므로 엔진 교체에 영향받지 않는다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Stack &amp; Principles</div>
+      <h2>기술 스택 · 설계 원칙</h2>
+    </div>
+    <table class="stack-table">
+      <tr><td>게임 엔진</td><td>Unreal Engine 5.7 — C++ 게임플레이 모듈 (GameInstanceSubsystem, UMG, Enhanced Input)</td></tr>
+      <tr><td>대화 LLM</td><td>gemma-4-E2B-it (Q8) · llama.cpp llama-server · OpenAI 호환 API · GPU</td></tr>
+      <tr><td>음성 TTS</td><td>MeloTTS 한국어 (VITS2) · kiwipiepy G2P 어댑터 · CPU</td></tr>
+      <tr><td>중간 서버</td><td>Python 3.11 · FastAPI · httpx · soundfile</td></tr>
+      <tr><td>비동기 안전성</td><td>모든 HTTP 콜백에서 TWeakObjectPtr 유효성 검사 · RequestId로 늦은 응답 폐기 → 무크래시</td></tr>
+      <tr><td>관심사 분리</td><td>TTS 로드 실패가 채팅 중계를 막지 않음 (/tts만 503, 대화는 정상)</td></tr>
+      <tr><td>설정 외부화</td><td>서버 URL·모델명·타임아웃·TTS 토글을 에디터 설정(UDeveloperSettings)으로 노출</td></tr>
+      <tr><td>안전 규칙</td><td>LLM은 대사만 생성 — 게임 상태(아이템·퀘스트·이동)는 응답으로 절대 변경하지 않음</td></tr>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="verdict">
+      <span>파이썬 TTS 파이프라인: <b>완료 · 검증됨</b></span>
+      <span style="color:var(--faint)">|</span>
+      <span>UE 음성 재생: 에디터 빌드 검증 대기</span>
+    </div>
+    <p class="note">ChattingNPC — 로컬 LLM 다중 NPC 대화 시스템. 문서 생성 2026-07-26.</p>
+  </div>
+</footer>

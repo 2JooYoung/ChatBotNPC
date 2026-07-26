@@ -716,3 +716,68 @@ uvicorn main:app --host 127.0.0.1 --port 8000
 - UE ServerUrl 변경 후 PIE 실대화(§5 #6)는 에디터 수작업이라 이번에 미검증 — 사용자 확인 필요.
 - `/stt`는 스텁뿐 → 다음 단계에서 faster-whisper 등 실연동 + UE 마이크 캡처.
 - 확장 후보: `/tts`, 대화 요약(장기 기억) 엔드포인트를 같은 프록시에 추가.
+
+---
+
+# TTS — NPC 음성 합성 (파이썬 측 완료·검증, UE 측 코드 완료·에디터 검증 대기, 2026-07-26)
+
+> 프록시에 `/tts`를 붙여 NPC 대사(한국어)를 음성으로 합성·재생한다. 엔진은 **MeloTTS(한국어)**.
+> 상세 계획: `C:\Users\ljy57\.claude\plans\tts-floating-clover.md`.
+
+## 1. 엔진 선택 결정 (중요)
+- 초안은 Kokoro-82M을 골랐으나 **공식 Kokoro는 한국어 미지원**(영/스/프/힌/일/포/중만) → 폐기.
+- **MeloTTS(MyShell, MIT)** 로 확정: 한국어 정식 지원, CPU 실시간(약 1x), 가볍고 로컬.
+- 대안(필요 시): 음질/보이스 클로닝은 **XTTS v2(coqui)**, 최상 음질은 클라우드 TTS API.
+  `/tts` 인터페이스가 고정이라 엔진 교체는 파이썬 국소 변경으로 끝남.
+
+## 2. 생성/수정한 파일
+| 파일 | 역할 |
+|---|---|
+| `python_server/main.py` (수정) | `POST /tts` 추가 — MeloTTS 한국어 합성 → 16-bit PCM mono WAV 반환. TTS 로드 실패는 채팅 중계와 격리(로드 실패 시 `/tts`만 503). 추론 직렬화(asyncio.Lock)+스레드풀. |
+| `python_server/melo_ko_patch.py` (신규) | **Windows 한국어 G2P 우회** — kiwipiepy를 `eunjeon.Mecab(.pos)` 인터페이스로 감싸 sys.modules 주입. `import melo` 이전에 호출. |
+| `python_server/tts_smoke.py` (신규) | 서버 없이 모델 직접 로드·합성해 `out_kr.wav` 생성 + 유효성(피크/길이) 검증. |
+| `python_server/requirements.txt` (수정) | `soundfile`, `kiwipiepy` 추가. |
+| `python_server/README.md` (수정) | 검증된 설치 레시피(3.11 필수 등) + `/tts` 문서. |
+| `Source/ChattingNPC/AIChat/NPCVoiceSubsystem.h/.cpp` (신규) | `UNPCVoiceSubsystem`(GameInstanceSubsystem) — `/tts` HTTP 호출 → `FWaveModInfo`로 WAV 파싱 → `USoundWaveProcedural` 재생(NPC 위치 3D). 늦은 응답 폐기·재생 취소. |
+| `Source/ChattingNPC/AIChat/LocalLLMSettings.h/.cpp` (수정) | `bEnableTts`/`TtsServerUrl`(기본 `:8000/tts`)/`TtsRequestTimeoutSeconds` 추가. |
+| `Source/ChattingNPC/UI/NPCChatWidget.h/.cpp` (수정) | 응답/초기 인사 확정 지점에서 `SpeakForNPC` 호출, 대화 종료 시 `StopSpeaking`. |
+
+## 3. 아키텍처 (기존 프록시 패턴 확장)
+```
+NPC 대사 텍스트 ─(POST /tts)─▶ python_server(:8000) ─▶ MeloTTS(KR) ─▶ WAV(16bit/mono) ─▶ UE 재생
+```
+- LLM 텍스트 경로는 **무변경**. TTS는 응답 수신 후 별도 HTTP 호출(대사는 즉시 표시, 음성은 준비되는 대로).
+- 오디오 계약: **16-bit PCM mono WAV**, 샘플레이트는 모델값(44100) → UE는 헤더에서 읽음(`FWaveModInfo`).
+
+## 4. Windows 설치에서 뚫은 벽 (재현 시 반드시 반영)
+1. **Python 3.12 불가** → tokenizers/fugashi 구버전 wheel 없음. **3.11 필수**(`py -3.11 -m venv .venv`).
+2. **librosa `pkg_resources` 오류** → MeloTTS 설치가 setuptools를 최신으로 올려 발생. **`pip install "setuptools<80"`** 로 복원(설치 마지막에).
+3. **한국어 G2P mecab** → `eunjeon` 빌드 실패, `python-mecab-ko`는 `mecab-python3`와 대소문자 폴더 충돌.
+   → **kiwipiepy를 eunjeon으로 감싸 우회**(`melo_ko_patch.py`). `python-mecab-ko` 설치 금지.
+4. `python -m unidic download` 필요(MeloTTS import 시 일본어 사전 참조).
+
+## 5. 검증 결과 (파이썬 측)
+| # | 항목 | 결과 |
+|---|---|---|
+| 1 | `tts_smoke.py` 직접 합성 | ✅ `out_kr.wav`(44100Hz/mono/16bit, 5.1초, peak 0.63 = 비-무음), SMOKE OK |
+| 2 | 합성 속도(캐시 후, CPU) | ✅ 약 **1x 실시간**(5.1초 오디오 ≈ 5초) |
+| 3 | `GET :8000/health` | ✅ `{"status":"ok","tts":true}` |
+| 4 | `POST :8000/tts` | ✅ **HTTP 200 / audio/wav / mono·16bit·44100Hz** WAV 반환 |
+| 5 | 한국어 발음 청취 | ✅ 사용자 확인 "괜찮아" |
+| 6 | UE 빌드·PIE 재생 | ⏳ **에디터 수작업 필요**(아래 §6) — 미검증 |
+
+## 6. Unreal Editor에서 직접 해야 할 작업 (⚠️ 미완료 — 사용자 수행)
+1. C++ 리컴파일(Live Coding 또는 에디터 재빌드) → `UNPCVoiceSubsystem` 로드.
+2. Project Settings > Plugins > **Local LLM > TTS** → **`bEnableTts` 체크**(URL 기본값 `:8000/tts`).
+3. llama-server(:8080) + python_server(:8000, TTS 로드) 둘 다 기동.
+4. PIE → NPC 대화 → 대사 표시 시 **음성 재생 확인**. (`USoundWaveProcedural` 재생이 이 계획의 마지막 관문.)
+5. 서버 없이도 크래시 없이 텍스트만 표시되는지, 대화 종료 시 음성이 끊기는지 확인.
+
+## 7. 현재 남아 있는 문제 / 다음 단계
+- UE 측 컴파일·런타임 재생은 에디터 필요 → 사용자 검증 대기.
+- 화자가 KR 1종이라 NPC별 목소리 구분 약함 → 향후 XTTS 클로닝 또는 speed/pitch 차등.
+- 확장: STT(faster-whisper) 실연동 + 마이크 캡처, 스트리밍 재생(문장 단위)로 체감 지연 축소.
+
+## 8. 다른 컴퓨터 재개 시
+- python_server 설치는 README.md의 "TTS 설치(MeloTTS)" 절대 순서 그대로(3.11, setuptools<80, kiwipiepy).
+- `.venv`·모델 캐시는 git 미포함 → 새 PC에서 재설치·초기 모델 다운로드 필요.

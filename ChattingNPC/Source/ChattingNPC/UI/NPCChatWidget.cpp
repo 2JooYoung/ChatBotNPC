@@ -4,6 +4,7 @@
 #include "NPC/NPCCharacter.h"
 #include "NPC/NPCProfileDataAsset.h"
 #include "AIChat/LocalLLMSubsystem.h"
+#include "AIChat/NPCVoiceSubsystem.h"
 #include "ChattingNPC.h"
 
 #include "Engine/GameInstance.h"
@@ -13,6 +14,15 @@ ULocalLLMSubsystem* UNPCChatWidget::GetLLM() const
 	if (const UGameInstance* GI = GetGameInstance())
 	{
 		return GI->GetSubsystem<ULocalLLMSubsystem>();
+	}
+	return nullptr;
+}
+
+UNPCVoiceSubsystem* UNPCChatWidget::GetVoice() const
+{
+	if (const UGameInstance* GI = GetGameInstance())
+	{
+		return GI->GetSubsystem<UNPCVoiceSubsystem>();
 	}
 	return nullptr;
 }
@@ -70,6 +80,10 @@ void UNPCChatWidget::StartConversation(ANPCCharacter* NPC)
 	if (!Greeting.IsEmptyOrWhitespace())
 	{
 		AddNPCMessage(Greeting);
+		if (UNPCVoiceSubsystem* Voice = GetVoice())
+		{
+			Voice->SpeakForNPC(CurrentNPCId, Greeting.ToString(), NPC);
+		}
 	}
 
 	UE_LOG(LogChattingNPC, Log, TEXT("ChatWidget: conversation UI started for '%s'."), *CurrentNPCId.ToString());
@@ -121,6 +135,10 @@ void UNPCChatWidget::HandleLLMResponse(FName NPCId, const FString& Response)
 	}
 
 	AddNPCMessage(FText::FromString(Response));
+	if (UNPCVoiceSubsystem* Voice = GetVoice())
+	{
+		Voice->SpeakForNPC(NPCId, Response, CurrentNPC.Get());
+	}
 	SetWaitingForResponse(false);
 	OnRequestCompleted();
 }
@@ -175,6 +193,12 @@ void UNPCChatWidget::HandleConversationShutdown()
 	if (ULocalLLMSubsystem* LLM = GetLLM())
 	{
 		LLM->CancelRequest(CurrentNPCId);
+	}
+
+	// Stop any TTS playback / discard pending voice for this conversation.
+	if (UNPCVoiceSubsystem* Voice = GetVoice())
+	{
+		Voice->StopSpeaking();
 	}
 
 	SetWaitingForResponse(false);
