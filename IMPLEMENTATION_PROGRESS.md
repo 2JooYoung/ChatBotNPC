@@ -764,17 +764,19 @@ NPC 대사 텍스트 ─(POST /tts)─▶ python_server(:8000) ─▶ MeloTTS(KR
 | 3 | `GET :8000/health` | ✅ `{"status":"ok","tts":true}` |
 | 4 | `POST :8000/tts` | ✅ **HTTP 200 / audio/wav / mono·16bit·44100Hz** WAV 반환 |
 | 5 | 한국어 발음 청취 | ✅ 사용자 확인 "괜찮아" |
-| 6 | UE 빌드·PIE 재생 | ⏳ **에디터 수작업 필요**(아래 §6) — 미검증 |
+| 6 | UE 빌드·PIE 재생 | ✅ **확인됨** — bEnableTts 체크 후 PIE에서 NPC 대사 음성 재생 성공(2026-07-26) |
 
-## 6. Unreal Editor에서 직접 해야 할 작업 (⚠️ 미완료 — 사용자 수행)
-1. C++ 리컴파일(Live Coding 또는 에디터 재빌드) → `UNPCVoiceSubsystem` 로드.
+## 6. Unreal Editor에서 해야 할 작업 (✅ 완료·검증됨)
+1. C++ 리컴파일 → `UNPCVoiceSubsystem` 로드.
+   - ⚠️ **주의**: 새 파일이라 Live Coding으로는 안 잡힐 수 있음 → **에디터 닫고 Generate VS project files + 전체 리빌드** 권장.
 2. Project Settings > Plugins > **Local LLM > TTS** → **`bEnableTts` 체크**(URL 기본값 `:8000/tts`).
+   - ⚠️ **기본값이 꺼짐(false)** — 체크 안 하면 UE가 `/tts` 요청 자체를 안 보냄(무음). 겪은 이슈.
 3. llama-server(:8080) + python_server(:8000, TTS 로드) 둘 다 기동.
-4. PIE → NPC 대화 → 대사 표시 시 **음성 재생 확인**. (`USoundWaveProcedural` 재생이 이 계획의 마지막 관문.)
+4. PIE → NPC 대화 → 대사 표시 시 **음성 재생 확인**. → ✅ NPC 위치에서 한국어 음성 정상 재생.
 5. 서버 없이도 크래시 없이 텍스트만 표시되는지, 대화 종료 시 음성이 끊기는지 확인.
 
 ## 7. 현재 남아 있는 문제 / 다음 단계
-- UE 측 컴파일·런타임 재생은 에디터 필요 → 사용자 검증 대기.
+- (완료) UE 측 컴파일·런타임 재생 PIE 검증 통과 — MVP+TTS 전 구간 동작.
 - 화자가 KR 1종이라 NPC별 목소리 구분 약함 → 향후 XTTS 클로닝 또는 speed/pitch 차등.
 - 확장: STT(faster-whisper) 실연동 + 마이크 캡처, 스트리밍 재생(문장 단위)로 체감 지연 축소.
 

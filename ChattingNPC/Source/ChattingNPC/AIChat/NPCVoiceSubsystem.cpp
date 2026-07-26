@@ -14,7 +14,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/GameInstance.h"
 
-void UNPCVoiceSubsystem::SpeakForNPC(FName NPCId, const FString& Text, AActor* SpeakerActor)
+void UNPCVoiceSubsystem::SpeakForNPC(FName NPCId, const FString& Text, float Pitch, float Speed, AActor* SpeakerActor)
 {
 	const ULocalLLMSettings* Settings = GetDefault<ULocalLLMSettings>();
 	if (!Settings || !Settings->bEnableTts || Settings->TtsServerUrl.IsEmpty())
@@ -34,6 +34,8 @@ void UNPCVoiceSubsystem::SpeakForNPC(FName NPCId, const FString& Text, AActor* S
 
 	const TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
 	Root->SetStringField(TEXT("text"), Trimmed);
+	Root->SetNumberField(TEXT("pitch"), Pitch);
+	Root->SetNumberField(TEXT("speed"), Speed);
 
 	FString Body;
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Body);

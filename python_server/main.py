@@ -92,9 +92,50 @@ async def chat_completions(request: Request) -> Response:
     )
 
 
-def _synthesize_wav(text: str, speed: float) -> bytes:
-    """블로킹 합성 → 16-bit PCM mono WAV 바이트. 스레드풀에서 호출한다."""
+def _shift_pitch(audio, sr: int, semitones: float):
+    """포먼트를 보존하며 피치만 옮긴다(praat PSOLA "Change gender").
+
+    naive 피치 시프트는 포먼트까지 밀려 '다람쥐' 소리가 나므로, 음색(포먼트)을
+    대부분 유지한 채 피치 중앙값만 이동해 자연스럽게 만든다. 실패 시 librosa 폴백.
+    """
+    import numpy as np
+
+    try:
+        import parselmouth
+        from parselmouth.praat import call
+
+        snd = parselmouth.Sound(np.asarray(audio, dtype="float64"), sampling_frequency=sr)
+        f0 = snd.to_pitch().selected_array["frequency"]
+        voiced = f0[f0 > 0]
+        if voiced.size == 0:
+            return np.asarray(audio, dtype="float32")
+
+        ratio = 2.0 ** (semitones / 12.0)
+        new_median = min(max(float(np.median(voiced)) * ratio, 75.0), 500.0)
+        # 포먼트는 조금만(부분 지수) 옮겨 음색 유지 → 자연스러움 우선
+        formant_ratio = ratio ** 0.35
+        out = call(snd, "Change gender", 75, 600, formant_ratio, new_median, 1.0, 1.0)
+        return np.asarray(out.values, dtype="float32").flatten()
+    except Exception:  # noqa: BLE001 - praat 실패 시 안전 폴백
+        import librosa
+
+        return librosa.effects.pitch_shift(
+            np.asarray(audio, dtype="float32"), sr=sr, n_steps=float(semitones)
+        )
+
+
+def _synthesize_wav(text: str, speed: float, pitch: float) -> bytes:
+    """블로킹 합성 → 16-bit PCM mono WAV 바이트. 스레드풀에서 호출한다.
+
+    MeloTTS 한국어는 화자가 1종이라, NPC별 음색은 speed(속도)와
+    pitch(반음 단위, 포먼트 보존 시프트)로 차등화한다. pitch≈0이면 시프트 생략.
+    """
+    import numpy as np
+
     audio = _tts_model.tts_to_file(text, _tts_speaker_id, output_path=None, speed=speed)
+    audio = np.asarray(audio, dtype="float32")
+    if abs(pitch) >= 0.1:
+        audio = _shift_pitch(audio, _tts_sample_rate, pitch)
     buf = io.BytesIO()
     # 샘플레이트는 모델 출력값을 그대로 사용 → UE는 WAV 헤더에서 읽는다.
     sf.write(buf, audio, _tts_sample_rate, format="WAV", subtype="PCM_16")
@@ -120,10 +161,17 @@ async def tts(request: Request) -> Response:
         speed = float(payload.get("speed", 1.0))
     except (TypeError, ValueError):
         speed = 1.0
+    try:
+        pitch = float(payload.get("pitch", 0.0))
+    except (TypeError, ValueError):
+        pitch = 0.0
+    # 극단값이 음질을 망치지 않도록 안전 범위로 제한
+    speed = min(max(speed, 0.5), 2.0)
+    pitch = min(max(pitch, -8.0), 8.0)
 
     try:
         async with _tts_lock:  # 추론 직렬화(모델 동시 접근 방지)
-            wav_bytes = await run_in_threadpool(_synthesize_wav, text, speed)
+            wav_bytes = await run_in_threadpool(_synthesize_wav, text, speed, pitch)
     except Exception as exc:  # noqa: BLE001
         return JSONResponse(status_code=500, content={"error": f"합성 실패: {exc}"})
 

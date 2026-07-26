@@ -55,4 +55,13 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NPC Profile|Generation", meta = (ClampMin = "0.0", ClampMax = "2.0"))
 	float Temperature = 0.7f;
+
+	/** Voice pitch shift in semitones (negative = lower/gruffer, positive = higher).
+	 *  The TTS voice has a single speaker; this differentiates NPCs. 0 = unchanged. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NPC Profile|Voice", meta = (ClampMin = "-8.0", ClampMax = "8.0"))
+	float VoicePitch = 0.0f;
+
+	/** Voice speaking speed multiplier (1.0 = normal, <1 slower, >1 faster). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NPC Profile|Voice", meta = (ClampMin = "0.5", ClampMax = "2.0"))
+	float VoiceSpeed = 1.0f;
 };

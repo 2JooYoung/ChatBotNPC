@@ -82,7 +82,10 @@ void UNPCChatWidget::StartConversation(ANPCCharacter* NPC)
 		AddNPCMessage(Greeting);
 		if (UNPCVoiceSubsystem* Voice = GetVoice())
 		{
-			Voice->SpeakForNPC(CurrentNPCId, Greeting.ToString(), NPC);
+			const UNPCProfileDataAsset* P = CurrentProfile.Get();
+			const float Pitch = P ? P->VoicePitch : 0.0f;
+			const float Speed = P ? P->VoiceSpeed : 1.0f;
+			Voice->SpeakForNPC(CurrentNPCId, Greeting.ToString(), Pitch, Speed, NPC);
 		}
 	}
 
@@ -137,7 +140,10 @@ void UNPCChatWidget::HandleLLMResponse(FName NPCId, const FString& Response)
 	AddNPCMessage(FText::FromString(Response));
 	if (UNPCVoiceSubsystem* Voice = GetVoice())
 	{
-		Voice->SpeakForNPC(NPCId, Response, CurrentNPC.Get());
+		const UNPCProfileDataAsset* P = CurrentProfile.Get();
+		const float Pitch = P ? P->VoicePitch : 0.0f;
+		const float Speed = P ? P->VoiceSpeed : 1.0f;
+		Voice->SpeakForNPC(NPCId, Response, Pitch, Speed, CurrentNPC.Get());
 	}
 	SetWaitingForResponse(false);
 	OnRequestCompleted();

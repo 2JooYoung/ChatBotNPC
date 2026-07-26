@@ -1,0 +1,276 @@
+<title>ChattingNPC — 대화창 UI 시안 (판타지 RPG)</title>
+<style>
+  /* 의도적으로 하나의 시각 세계(양피지 대화창)에 커밋 — 라이트/다크 반전 안 함 */
+  :root {
+    --scene: #17110d;
+    --parch: #e9dcc2;
+    --parch-2: #e2d3b4;
+    --parch-edge: #d3bd93;
+    --ink: #3a2c1b;
+    --ink-soft: #6d5b40;
+    --gold: #c6a24c;
+    --gold-deep: #9c7a2f;
+    --ember: #cf6f2a;
+    --leather: #d6c39d;
+    --leather-ink: #4a3a26;
+    --line: #cbb488;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background:
+      radial-gradient(120% 90% at 50% -10%, #3a2415 0%, #1d140d 45%, #120c08 100%),
+      var(--scene);
+    color: var(--parch);
+    font-family: 'Pretendard', 'Malgun Gothic', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 48px 20px 80px; gap: 34px;
+  }
+  .page-eyebrow {
+    font-family: 'Nanum Myeongjo', 'Batang', Georgia, serif;
+    letter-spacing: .18em; text-transform: uppercase; font-size: .74rem;
+    color: var(--gold); opacity: .85;
+  }
+  .page-title { font-family: 'Nanum Myeongjo','Batang',Georgia,serif; font-size: 1.4rem; margin: 6px 0 0; color: #f0e6cf; font-weight: 600; text-align:center; }
+  .page-sub { color: #b6a688; font-size: .92rem; margin-top: 8px; text-align: center; max-width: 52ch; }
+
+  /* ======= 대화창 ======= */
+  .dialogue {
+    width: min(600px, 100%);
+    background:
+      linear-gradient(180deg, var(--parch) 0%, var(--parch-2) 100%);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 0;
+    position: relative;
+    box-shadow:
+      0 0 0 2px var(--gold-deep),
+      0 0 0 5px #2a1c10,
+      0 0 0 7px var(--gold),
+      0 26px 60px rgba(0,0,0,.55);
+    overflow: hidden;
+  }
+  /* 모서리 장식 */
+  .dialogue::before, .dialogue::after {
+    content: ""; position: absolute; width: 26px; height: 26px; pointer-events: none; z-index: 3;
+    border: 2px solid var(--gold-deep);
+  }
+  .dialogue::before { top: 8px; left: 8px; border-right: 0; border-bottom: 0; }
+  .dialogue::after { bottom: 8px; right: 8px; border-left: 0; border-top: 0; }
+
+  /* 헤더: 문장(crest) + 이름 + 직업 + 닫기 */
+  .dhead {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px 14px;
+    background: linear-gradient(180deg, #f0e6cf, #e6d6b4);
+    border-bottom: 2px solid var(--gold-deep);
+    position: relative;
+  }
+  .dhead::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .crest {
+    width: 46px; height: 46px; flex: 0 0 46px; border-radius: 8px;
+    display: grid; place-items: center;
+    background: radial-gradient(circle at 40% 30%, #4a3620, #2a1c10);
+    border: 2px solid var(--gold); color: var(--gold);
+    font-family: 'Nanum Myeongjo','Batang',Georgia,serif; font-size: 1.4rem; font-weight: 700;
+    box-shadow: inset 0 0 8px rgba(0,0,0,.6);
+  }
+  .dhead .who { flex: 1; min-width: 0; }
+  .dhead .name {
+    font-family: 'Nanum Myeongjo','Batang',Georgia,serif; font-weight: 700;
+    font-size: 1.3rem; color: var(--ink); line-height: 1.1; letter-spacing: .01em;
+  }
+  .dhead .role {
+    font-size: .78rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--gold-deep); margin-top: 3px; font-weight: 600;
+  }
+  .dclose {
+    flex: 0 0 auto; width: 30px; height: 30px; border-radius: 6px; border: 1.5px solid var(--gold-deep);
+    background: transparent; color: var(--gold-deep); cursor: pointer; font-size: 1rem;
+    display: grid; place-items: center; font-family: Georgia, serif;
+  }
+  .dclose:hover, .dclose:focus-visible { background: var(--gold-deep); color: #f0e6cf; outline: none; }
+
+  /* 메시지 로그 */
+  .dlog {
+    padding: 18px; display: flex; flex-direction: column; gap: 14px;
+    max-height: 340px; overflow-y: auto;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 27px, rgba(120,90,50,.05) 27px 28px),
+      var(--parch);
+  }
+  .msg { display: flex; flex-direction: column; max-width: 82%; }
+  .msg .bub {
+    padding: 10px 14px; border-radius: 12px; font-size: .96rem; line-height: 1.55;
+    position: relative;
+  }
+  .msg .tag {
+    font-family: 'Nanum Myeongjo','Batang',Georgia,serif;
+    font-size: .72rem; letter-spacing: .04em; margin: 0 0 4px; color: var(--ink-soft);
+  }
+  /* NPC 말풍선 — 왼쪽, 양피지+금테 */
+  .msg.npc { align-self: flex-start; }
+  .msg.npc .bub {
+    background: #f4ecd8; border: 1.5px solid var(--gold); color: var(--ink);
+    border-top-left-radius: 3px;
+    box-shadow: 0 2px 0 rgba(156,122,47,.25);
+  }
+  /* 플레이어 말풍선 — 오른쪽, 가죽 톤 */
+  .msg.me { align-self: flex-end; }
+  .msg.me .tag { text-align: right; }
+  .msg.me .bub {
+    background: linear-gradient(180deg, #6a5334, #58452a); color: #f2e8d2;
+    border: 1.5px solid #3c2e1a; border-top-right-radius: 3px;
+  }
+  /* 생각중 표시 */
+  .thinking { align-self: flex-start; display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: .9rem; font-style: italic; }
+  .thinking .dots { display: inline-flex; gap: 4px; }
+  .thinking .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--gold-deep); animation: blink 1.2s infinite; }
+  .thinking .dots i:nth-child(2){ animation-delay:.2s } .thinking .dots i:nth-child(3){ animation-delay:.4s }
+  @keyframes blink { 0%,60%,100%{opacity:.25} 30%{opacity:1} }
+
+  /* 입력 바 */
+  .dinput {
+    display: flex; gap: 10px; align-items: center;
+    padding: 14px 16px; border-top: 2px solid var(--gold-deep);
+    background: linear-gradient(180deg, #e6d6b4, #ddcaa2);
+  }
+  .field {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+    background: #f4ecd8; border: 1.5px solid var(--line); border-radius: 8px;
+    padding: 9px 12px; color: var(--ink-soft); font-size: .95rem;
+    box-shadow: inset 0 1px 3px rgba(90,66,36,.18);
+  }
+  .send {
+    flex: 0 0 auto; padding: 10px 18px; border-radius: 8px; cursor: pointer;
+    font-family: 'Nanum Myeongjo','Batang',Georgia,serif; font-weight: 700; font-size: .92rem;
+    color: #2a1c10; border: 1.5px solid var(--gold-deep);
+    background: linear-gradient(180deg, #e3b455, var(--gold));
+    box-shadow: 0 2px 0 var(--gold-deep);
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .send:hover, .send:focus-visible { filter: brightness(1.06); outline: none; }
+  .hint { text-align: center; font-size: .74rem; color: #a58f6a; padding: 8px 0 0; }
+
+  /* ======= 빌드 키 ======= */
+  .buildkey {
+    width: min(600px, 100%);
+    background: rgba(30,22,14,.6); border: 1px solid #4a3a26; border-radius: 12px;
+    padding: 20px 22px; color: #e2d3b4;
+  }
+  .buildkey h2 { font-family: 'Nanum Myeongjo','Batang',Georgia,serif; font-size: 1.05rem; margin: 0 0 4px; color: #f0e6cf; }
+  .buildkey p.k-sub { margin: 0 0 16px; color: #b6a688; font-size: .86rem; }
+  .krow { display: grid; grid-template-columns: 150px 1fr; gap: 12px; padding: 11px 0; border-top: 1px solid #3a2c1b; font-size: .88rem; }
+  .krow:first-of-type { border-top: 0; }
+  .krow .kk { color: var(--gold); font-family: 'Nanum Myeongjo','Batang',Georgia,serif; }
+  .krow .kv { color: #ddcaa2; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .sw { display: inline-flex; align-items: center; gap: 7px; font-size: .78rem; font-family: ui-monospace, Consolas, monospace; color: #cbb488; background: rgba(0,0,0,.25); padding: 4px 9px; border-radius: 6px; border: 1px solid #4a3a26; }
+  .sw i { width: 13px; height: 13px; border-radius: 3px; border: 1px solid rgba(0,0,0,.4); }
+
+  @media (max-width: 520px) {
+    .krow { grid-template-columns: 1fr; gap: 3px; }
+    .dlog { max-height: 300px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .thinking .dots i { animation: none; } }
+</style>
+
+<div class="page-eyebrow">In-game Dialogue · UI 시안</div>
+<h1 class="page-title">대장간 대화창 — 판타지 RPG 톤</h1>
+<p class="page-sub">아래는 게임 안에서 이렇게 보이면 좋겠다는 <b>목표 디자인</b>입니다. 실제 화면(WBP_NPCChat)을
+UMG에서 이 모습에 맞춰 다듬으면 됩니다. 스크린샷 주시면 지금 위젯 구조에 맞춰 세부를 조정할게요.</p>
+
+<!-- ======= 대화창 목업 ======= -->
+<div class="dialogue" role="group" aria-label="NPC 대화창">
+  <div class="dhead">
+    <div class="crest" aria-hidden="true">로</div>
+    <div class="who">
+      <div class="name">로버트</div>
+      <div class="role">대장장이</div>
+    </div>
+    <button class="dclose" aria-label="대화 닫기">✕</button>
+  </div>
+
+  <div class="dlog">
+    <div class="msg npc">
+      <div class="tag">로버트</div>
+      <div class="bub">무슨 일이지? 필요한 게 있나?</div>
+    </div>
+    <div class="msg me">
+      <div class="tag">나</div>
+      <div class="bub">좋은 검 하나 만들어줄 수 있어요?</div>
+    </div>
+    <div class="msg npc">
+      <div class="tag">로버트</div>
+      <div class="bub">검이라. 쓸 만한 철광석이 있으면 만들어주지. 광산에서 구해 와라.</div>
+    </div>
+    <div class="msg me">
+      <div class="tag">나</div>
+      <div class="bub">광산은 어느 쪽이에요?</div>
+    </div>
+    <div class="thinking" aria-live="polite">
+      로버트가 생각 중
+      <span class="dots"><i></i><i></i><i></i></span>
+    </div>
+  </div>
+
+  <div class="dinput">
+    <div class="field">말을 걸어보세요…</div>
+    <button class="send">보내기 <span aria-hidden="true">▸</span></button>
+  </div>
+</div>
+
+<!-- ======= 빌드 키 (UMG 매핑) ======= -->
+<div class="buildkey">
+  <h2>UMG 빌드 키 — 무엇을 어떻게</h2>
+  <p class="k-sub">WBP_NPCChat의 각 위젯에 아래 값을 적용하면 이 시안에 가까워집니다.</p>
+
+  <div class="krow">
+    <div class="kk">색 팔레트</div>
+    <div class="kv">
+      <div class="swatches">
+        <span class="sw"><i style="background:#e9dcc2"></i>양피지 #E9DCC2</span>
+        <span class="sw"><i style="background:#c6a24c"></i>금테 #C6A24C</span>
+        <span class="sw"><i style="background:#3a2c1b"></i>잉크 #3A2C1B</span>
+        <span class="sw"><i style="background:#58452a"></i>가죽(플레이어) #58452A</span>
+        <span class="sw"><i style="background:#cf6f2a"></i>엠버(강조) #CF6F2A</span>
+      </div>
+    </div>
+  </div>
+  <div class="krow">
+    <div class="kk">폰트</div>
+    <div class="kv">이름·직업·버튼 = <b>명조/세리프</b>(예: 나눔명조, Batang). 대사 본문 = 가독 산세리프(맑은 고딕/Pretendard).</div>
+  </div>
+  <div class="krow">
+    <div class="kk">외곽 프레임</div>
+    <div class="kv">Border 위젯 중첩 또는 9-slice 이미지로 <b>금색 이중 테두리</b>. 모서리 장식은 Image 위젯 4개로 코너에 배치.</div>
+  </div>
+  <div class="krow">
+    <div class="kk">헤더</div>
+    <div class="kv">좌측 문장(Crest) = Border+Text(이니셜) 또는 초상화 Image. 우측 상단 닫기 = Button("✕"). 하단에 금색 구분선(Image/Border).</div>
+  </div>
+  <div class="krow">
+    <div class="kk">메시지 말풍선</div>
+    <div class="kv">각 줄을 별도 위젯(WBP_NPCChatMessage / WBP_PlayerChatMessage)으로. NPC=왼쪽 정렬·양피지+금테, 플레이어=오른쪽 정렬·가죽 톤. Border의 Corner Radius + Padding(10/14).</div>
+  </div>
+  <div class="krow">
+    <div class="kk">스크롤 영역</div>
+    <div class="kv">ScrollBox 안 VerticalBox, 항목 간 Spacing 14. 새 메시지 추가 후 ScrollToEnd.</div>
+  </div>
+  <div class="krow">
+    <div class="kk">입력 바</div>
+    <div class="kv">EditableTextBox(Hint "말을 걸어보세요…") + 전송 Button(금색 그라디언트). 상단 금색 구분선.</div>
+  </div>
+  <div class="krow">
+    <div class="kk">생각중 표시</div>
+    <div class="kv">OnWaitingForResponseChanged(true)일 때 "…생각 중" Text + 점 3개(간단히 Throbber로 대체 가능) 표시, 전송 Button Disable.</div>
+  </div>
+  <div class="krow">
+    <div class="kk">연출(선택)</div>
+    <div class="kv">대화창 열릴 때 Fade+살짝 위로 이동(Widget Animation). 말풍선 추가 시 Fade-in. 과하지 않게.</div>
+  </div>
+</div>

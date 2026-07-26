@@ -26,10 +26,11 @@ class CHATTINGNPC_API UNPCVoiceSubsystem : public UGameInstanceSubsystem
 public:
 	/**
 	 * Synthesize and play speech for Text. No-op if TTS is disabled or the URL is empty.
+	 * Pitch (semitones) and Speed differentiate per-NPC voices (single-speaker TTS).
 	 * SpeakerActor (optional) positions the audio in 3D; null plays it as a 2D sound.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TTS")
-	void SpeakForNPC(FName NPCId, const FString& Text, AActor* SpeakerActor = nullptr);
+	void SpeakForNPC(FName NPCId, const FString& Text, float Pitch = 0.0f, float Speed = 1.0f, AActor* SpeakerActor = nullptr);
 
 	/** Stop current playback and discard any in-flight request (call on end / NPC switch). */
 	UFUNCTION(BlueprintCallable, Category = "TTS")

@@ -6,7 +6,9 @@ UE와 `llama-server` 사이에 두는 얇은 프록시(FastAPI, 기본 `:8000`).
 ## 엔드포인트
 - `GET  /health` → `{"status": "ok", "tts": true|false}` (tts=모델 로드 여부)
 - `POST /v1/chat/completions` → llama-server로 **변형 없이** 중계
-- `POST /tts` → 한국어 음성 합성. body `{"text": "<대사>", "speed": 1.0}` → `audio/wav`(16-bit PCM mono)
+- `POST /tts` → 한국어 음성 합성. body `{"text": "<대사>", "speed": 1.0, "pitch": 0.0}` → `audio/wav`(16-bit PCM mono)
+  - `pitch`: 반음 단위 피치 시프트(음수=낮게/굵게, 양수=높게). NPC별 음색 차등용. 범위 ±8.
+  - `speed`: 말하기 속도 배수(0.5~2.0).
   - 모델 미로드 시 503, 빈 텍스트 400, 합성 실패 500
 - `POST /stt` → 501 `{"error": "미구현"}` (향후 음성→텍스트용 스텁)
 

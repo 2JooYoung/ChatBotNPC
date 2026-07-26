@@ -1,0 +1,327 @@
+<title>ChattingNPC — 로컬 AI NPC 대화 시스템</title>
+<style>
+  :root {
+    --ground:#14110e; --surface:#1e1a15; --surface-2:#262019;
+    --ink:#ede6da; --muted:#a99e8c; --faint:#7a7062;
+    --line:#352e25; --line-strong:#4a4033;
+    --ember:#ea9a3e; --signal:#46bcae; --ok:#7cb87a;
+    --shadow:rgba(0,0,0,.5); color-scheme:dark;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --ground:#ede8de; --surface:#f6f2ea; --surface-2:#efe9df;
+      --ink:#26211a; --muted:#6c6355; --faint:#948a7a; --line:#ddd5c7; --line-strong:#c9bfad;
+      --ember:#b06d13; --signal:#1a8578; --ok:#3f8a3c; --shadow:rgba(80,66,40,.16); color-scheme:light; }
+  }
+  :root[data-theme="dark"]{ --ground:#14110e; --surface:#1e1a15; --surface-2:#262019;
+    --ink:#ede6da; --muted:#a99e8c; --faint:#7a7062; --line:#352e25; --line-strong:#4a4033;
+    --ember:#ea9a3e; --signal:#46bcae; --ok:#7cb87a; --shadow:rgba(0,0,0,.5); color-scheme:dark; }
+  :root[data-theme="light"]{ --ground:#ede8de; --surface:#f6f2ea; --surface-2:#efe9df;
+    --ink:#26211a; --muted:#6c6355; --faint:#948a7a; --line:#ddd5c7; --line-strong:#c9bfad;
+    --ember:#b06d13; --signal:#1a8578; --ok:#3f8a3c; --shadow:rgba(80,66,40,.16); color-scheme:light; }
+
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--ground); color:var(--ink);
+    font-family:'Pretendard',system-ui,'Segoe UI','Malgun Gothic',sans-serif; line-height:1.65;
+    -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:920px; margin:0 auto; padding:0 24px; }
+  h1,h2,h3{ font-family:'Cascadia Code','JetBrains Mono',ui-monospace,'Consolas',monospace; text-wrap:balance; }
+  .mono{ font-family:'Cascadia Code',ui-monospace,'Consolas',monospace; }
+  .eyebrow{ font-family:'Cascadia Code',ui-monospace,monospace; font-size:.72rem; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--faint); font-weight:600; }
+  a{ color:var(--ember); }
+
+  header.hero{ border-bottom:1px solid var(--line);
+    background:radial-gradient(120% 80% at 85% -10%, color-mix(in oklab,var(--ember) 15%,transparent), transparent 60%),
+              radial-gradient(90% 70% at 5% 0%, color-mix(in oklab,var(--signal) 10%,transparent), transparent 55%); }
+  .hero-inner{ padding:84px 0 40px; }
+  .hero h1{ font-size:clamp(2.2rem,6vw,3.7rem); line-height:1.05; margin:18px 0 0; letter-spacing:-.01em; font-weight:700; }
+  .hero h1 .a{ color:var(--ember); } .hero h1 .t{ color:var(--signal); }
+  .hero .lede{ margin:24px 0 0; max-width:60ch; font-size:1.1rem; color:var(--muted); }
+  .chips{ display:flex; flex-wrap:wrap; gap:10px; margin-top:30px; }
+  .chip{ font-family:'Cascadia Code',ui-monospace,monospace; font-size:.78rem; padding:7px 12px;
+    border:1px solid var(--line-strong); border-radius:999px; background:var(--surface);
+    display:inline-flex; align-items:center; gap:8px; }
+  .chip .dot{ width:7px; height:7px; border-radius:50%; background:var(--faint); }
+  .chip .dot.a{ background:var(--ember); } .chip .dot.t{ background:var(--signal); }
+
+  section{ padding:56px 0; border-bottom:1px solid var(--line); }
+  .sec-head{ margin-bottom:26px; }
+  .sec-head h2{ font-size:clamp(1.35rem,3.2vw,1.9rem); margin:8px 0 0; font-weight:700; }
+  .sec-head p{ margin:12px 0 0; color:var(--muted); max-width:64ch; }
+
+  figure.shot{ margin:0; }
+  figure.shot img{ display:block; width:100%; height:auto; border-radius:12px;
+    border:1px solid var(--line-strong); box-shadow:0 20px 50px var(--shadow); background:var(--surface); }
+  figure.shot figcaption{ margin-top:14px; color:var(--muted); font-size:.92rem; line-height:1.6; }
+  figcaption .cap-k{ font-family:'Cascadia Code',ui-monospace,monospace; font-size:.72rem;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--ink);
+    border:1px solid var(--line-strong); border-radius:6px; padding:3px 8px; margin-right:10px; }
+  figcaption .cap-k.a{ color:var(--ember); border-color:color-mix(in oklab,var(--ember) 40%,var(--line)); }
+  figcaption .cap-k.t{ color:var(--signal); border-color:color-mix(in oklab,var(--signal) 40%,var(--line)); }
+
+  .stat-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:26px; }
+  .stat{ background:var(--surface); border:1px solid var(--line-strong); border-radius:12px; padding:16px 18px; }
+  .stat .n{ font-family:'Cascadia Code',ui-monospace,monospace; font-size:1.5rem; font-weight:700; color:var(--ember);
+    font-variant-numeric:tabular-nums; }
+  .stat .l{ color:var(--muted); font-size:.84rem; margin-top:4px; }
+
+  .feat{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .fcard{ background:var(--surface); border:1px solid var(--line-strong); border-radius:12px; padding:18px 20px; }
+  .fcard.a{ border-top:3px solid var(--ember); } .fcard.t{ border-top:3px solid var(--signal); }
+  .fcard h3{ margin:0 0 6px; font-size:1rem; } .fcard p{ margin:0; color:var(--muted); font-size:.9rem; }
+
+  table.stack{ width:100%; border-collapse:collapse; font-size:.92rem; }
+  table.stack td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.stack tr td:first-child{ font-family:'Cascadia Code',ui-monospace,monospace; font-size:.78rem;
+    letter-spacing:.05em; text-transform:uppercase; color:var(--faint); white-space:nowrap; width:32%; }
+
+  .lead-p{ color:var(--ink); font-size:1.05rem; line-height:1.75; max-width:66ch; }
+  .lead-p b{ color:var(--ember); }
+
+  .benefits{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:24px; }
+  .bcard{ background:var(--surface); border:1px solid var(--line-strong); border-radius:12px; padding:16px 18px; }
+  .bcard .bi{ font-family:'Cascadia Code',ui-monospace,monospace; color:var(--ember); font-size:.7rem;
+    letter-spacing:.1em; text-transform:uppercase; font-weight:600; }
+  .bcard h3{ margin:7px 0 5px; font-size:.98rem; } .bcard p{ margin:0; color:var(--muted); font-size:.86rem; }
+  .tradeoff{ margin-top:16px; color:var(--faint); font-size:.86rem; border-left:2px solid var(--line-strong); padding-left:14px; }
+
+  .seq{ display:flex; flex-direction:column; margin-top:8px; }
+  .seq-step{ display:grid; grid-template-columns:46px 1fr; gap:16px; padding-bottom:22px; position:relative; }
+  .seq-step:not(:last-child)::before{ content:""; position:absolute; left:22px; top:42px; bottom:-2px; width:2px; background:var(--line-strong); }
+  .seq-num{ width:46px; height:46px; border-radius:12px; display:grid; place-items:center; z-index:1;
+    font-family:'Cascadia Code',ui-monospace,monospace; font-weight:700; font-size:.95rem;
+    background:var(--surface); border:1px solid var(--line-strong); color:var(--muted); }
+  .seq-step.a .seq-num{ color:var(--ember); border-color:color-mix(in oklab,var(--ember) 45%,var(--line)); }
+  .seq-step.t .seq-num{ color:var(--signal); border-color:color-mix(in oklab,var(--signal) 45%,var(--line)); }
+  .seq-body h3{ margin:9px 0 4px; font-size:1rem; }
+  .seq-body p{ margin:0; color:var(--muted); font-size:.9rem; }
+  .lane{ display:inline-flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
+  .lchip{ font-family:'Cascadia Code',ui-monospace,monospace; font-size:.68rem; padding:3px 9px; border-radius:999px;
+    border:1px solid var(--line-strong); color:var(--faint); }
+  .lchip.a{ color:var(--ember); } .lchip.t{ color:var(--signal); }
+  .phase-label{ font-family:'Cascadia Code',ui-monospace,monospace; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; margin:6px 0 14px; }
+  .phase-label.a{ color:var(--ember); } .phase-label.t{ color:var(--signal); }
+
+  footer{ padding:40px 0 64px; }
+  footer .v{ font-family:'Cascadia Code',ui-monospace,monospace; font-size:.9rem; color:var(--muted);
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  footer .v b{ color:var(--ok); }
+  footer .note{ color:var(--faint); font-size:.82rem; margin-top:10px; }
+
+  @media (max-width:720px){ .stat-row,.feat,.benefits{ grid-template-columns:1fr; } .hero-inner{ padding:60px 0 32px; } section{ padding:44px 0; } }
+</style>
+
+<header class="hero">
+  <div class="wrap hero-inner">
+    <div class="eyebrow">Local LLM · Unreal Engine 5.7 · 오프라인 AI</div>
+    <h1>말을 걸면, NPC가 <span class="a">자기 성격대로</span> 답하고 <span class="t">목소리</span>로 들려준다</h1>
+    <p class="lede">언리얼 엔진 게임 안에서 여러 NPC와 한국어로 대화하는 시스템. 대화 생성(LLM)과
+      음성 합성(TTS)을 <b>전부 로컬에서</b> 구동 — 외부 API·인터넷 없이 동작한다.</p>
+    <div class="chips">
+      <span class="chip"><span class="dot"></span>UE 5.7 · C++</span>
+      <span class="chip"><span class="dot a"></span>로컬 LLM (llama.cpp)</span>
+      <span class="chip"><span class="dot t"></span>한국어 TTS (MeloTTS)</span>
+      <span class="chip"><span class="dot"></span>FastAPI 프록시</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">The Result</div>
+      <h2>게임 안에서 실제로 대화한다</h2>
+      <p>플레이어가 NPC에게 다가가 말을 걸면 대화창이 열리고, NPC가 자신의 성격에 맞춰 한국어로 답한다.
+        아래는 상인 NPC ‘미아’와 물건을 흥정하는 장면 — 정해진 대사가 아니라 매번 새로 생성된다.</p>
+    </div>
+    <figure class="shot">
+      <img src="__IMG_GAME__" alt="게임 내 NPC 대화 화면 — 상인 미아와 한국어 대화" />
+      <figcaption><span class="cap-k a">게임 화면</span>
+        상인 ‘미아’와 실시간 한국어 대화. 로컬 LLM이 성격(친절하지만 계산적·과장된 말투)에 맞는 대사를
+        생성하고, 같은 대사가 음성으로도 재생된다. UI는 양피지 톤으로 직접 스타일링.</figcaption>
+    </figure>
+    <div class="stat-row">
+      <div class="stat"><div class="n">3</div><div class="l">성격·지식·목소리가 다른 NPC (대장장이·상인·경비병)</div></div>
+      <div class="stat"><div class="n">2</div><div class="l">로컬 서버 — LLM 엔진 + 통합 프록시</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">외부 API 호출 — 완전 오프라인 동작</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Why</div>
+      <h2>왜 이 프로젝트를 만들었나</h2>
+    </div>
+    <p class="lead-p">
+      게임 속 NPC는 대개 정해진 대사만 반복한다. <b>“진짜 대화가 되는 NPC를 만들 수 있을까”</b> —
+      그 질문에서 시작했다. 상용 AI API를 쓰면 쉽지만 비용·인터넷 의존·데이터 유출이 걸린다.
+      그래서 대화 생성과 음성 합성을 <b>전부 로컬에서</b> 돌려, 인터넷 없이도 작동하고 유저 데이터가
+      밖으로 나가지 않는 오프라인 대화 시스템을 목표로 했다. 동시에 언리얼(C++)과 AI(파이썬)를
+      실제 프로덕트처럼 통합하는 경험을 쌓고 싶었다.
+    </p>
+
+    <div class="sec-head" style="margin-top:40px">
+      <div class="eyebrow">Why Local</div>
+      <h2>로컬 LLM이면 뭐가 좋은가</h2>
+      <p>상용 API 대신 모델을 내 PC에서 직접 돌릴 때의 이점.</p>
+    </div>
+    <div class="benefits">
+      <div class="bcard"><div class="bi">비용</div><h3>호출당 요금 0원</h3>
+        <p>NPC가 몇 번을 대화하든 API 과금이 없다. 레이트 리밋도 없다.</p></div>
+      <div class="bcard"><div class="bi">프라이버시</div><h3>데이터가 밖으로 안 나감</h3>
+        <p>대화 내용이 외부 서버로 전송되지 않는다. 전부 로컬에서 처리.</p></div>
+      <div class="bcard"><div class="bi">오프라인</div><h3>인터넷 없이 동작</h3>
+        <p>네트워크·외부 서비스 장애나 정책 변경에 흔들리지 않는다.</p></div>
+      <div class="bcard"><div class="bi">제어</div><h3>완전한 커스터마이징</h3>
+        <p>모델·프롬프트·온도·토큰을 직접 통제. 게임에 맞게 튜닝 가능.</p></div>
+      <div class="bcard"><div class="bi">배포</div><h3>서버 운영비 없음</h3>
+        <p>유저 PC에서 구동 → 게임을 배포해도 백엔드 서버 비용이 들지 않는다.</p></div>
+      <div class="bcard"><div class="bi">확장</div><h3>기능을 내 마음대로</h3>
+        <p>프록시에 TTS·STT·요약 같은 기능을 자유롭게 붙일 수 있다.</p></div>
+    </div>
+    <p class="tradeoff">균형 있게 — 대신 유저 PC 성능(특히 GPU)이 필요하고, 최상위 상용 모델보다 품질은
+      낮으며, 초기 셋업이 있다. 이 프로젝트는 “오프라인·비용0·프라이버시”가 그 트레이드오프보다
+      가치 있다고 보고 로컬을 택했다.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">How It Works</div>
+      <h2>서버 동작 — 대화 한 번의 흐름</h2>
+      <p>플레이어가 메시지를 보내면 두 서버가 순서대로 움직인다. 텍스트(대화)와 음성(TTS)은
+        별개의 요청이라, 대사는 먼저 뜨고 음성은 준비되는 대로 재생된다.</p>
+    </div>
+
+    <div class="phase-label a">◆ 1단계 — 대화 생성 (텍스트)</div>
+    <div class="seq">
+      <div class="seq-step a">
+        <div class="seq-num">1</div>
+        <div class="seq-body">
+          <h3>플레이어 입력 → UE가 요청 조립</h3>
+          <p>시스템 프롬프트(성격·지식·금지) + 최근 대화 기록 + 이번 메시지를 OpenAI 형식으로 묶어 전송.</p>
+          <div class="lane"><span class="lchip">UE (게임)</span><span class="lchip a">→ POST /v1/chat/completions</span><span class="lchip">프록시 :8000</span></div>
+        </div>
+      </div>
+      <div class="seq-step a">
+        <div class="seq-num">2</div>
+        <div class="seq-body">
+          <h3>프록시가 LLM으로 중계</h3>
+          <p>요청 본문을 변형 없이 그대로 llama-server로 전달(passthrough).</p>
+          <div class="lane"><span class="lchip">프록시 :8000</span><span class="lchip a">→ 그대로 전달</span><span class="lchip">llama :8080</span></div>
+        </div>
+      </div>
+      <div class="seq-step a">
+        <div class="seq-num">3</div>
+        <div class="seq-body">
+          <h3>LLM이 대사 생성 → 화면 표시</h3>
+          <p>llama-server가 토큰을 하나씩 생성(~37 tok/s). 응답이 프록시를 거쳐 UE로 돌아오면 대사가 즉시 대화창에 뜬다.</p>
+          <div class="lane"><span class="lchip">llama :8080</span><span class="lchip a">→ 대사 텍스트</span><span class="lchip">UE 대화창</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-label t" style="margin-top:8px">◆ 2단계 — 음성 합성 (TTS)</div>
+    <div class="seq">
+      <div class="seq-step t">
+        <div class="seq-num">4</div>
+        <div class="seq-body">
+          <h3>UE가 그 대사를 음성으로 요청</h3>
+          <p>대사가 확정되면 텍스트 + NPC별 피치/속도를 프록시의 음성 엔드포인트로 보낸다.</p>
+          <div class="lane"><span class="lchip">UE</span><span class="lchip t">→ POST /tts</span><span class="lchip">프록시 :8000</span></div>
+        </div>
+      </div>
+      <div class="seq-step t">
+        <div class="seq-num">5</div>
+        <div class="seq-body">
+          <h3>MeloTTS가 한국어 음성 합성</h3>
+          <p>프록시가 MeloTTS로 대사를 한국어 음성으로 만들고, NPC별 음색으로 피치를 보정(포먼트 보존).</p>
+          <div class="lane"><span class="lchip">프록시 :8000</span><span class="lchip t">→ MeloTTS + 피치보정</span><span class="lchip">WAV</span></div>
+        </div>
+      </div>
+      <div class="seq-step t">
+        <div class="seq-num">6</div>
+        <div class="seq-body">
+          <h3>WAV 반환 → NPC 위치에서 재생</h3>
+          <p>UE가 받은 음성을 파싱해 NPC 위치에서 3D로 재생. 음성 실패는 조용히 무시 → 대화는 안 끊긴다.</p>
+          <div class="lane"><span class="lchip">프록시 :8000</span><span class="lchip t">→ audio/wav</span><span class="lchip">UE 재생</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Under the Hood</div>
+      <h2>실제로 도는 파이프라인</h2>
+      <p>대화 한 번에 두 엔진이 함께 움직인다. LLM 서버(:8080)가 대사를 토큰 단위로 생성하고,
+        파이썬 프록시(:8000)가 그 대사를 한국어 음성으로 합성한다. 아래는 대화 중 실시간 서버 로그.</p>
+    </div>
+    <figure class="shot">
+      <img src="__IMG_LOGS__" alt="서버 로그 — tts-proxy와 llama-server 실행 화면" />
+      <figcaption><span class="cap-k t">서버 로그</span>
+        위: 프록시가 대사를 문장 단위로 나눠 <span class="mono">POST /tts → 200 OK</span>로 한국어 음성 합성.
+        아래: llama-server가 <span class="mono">~37 tokens/sec</span>로 대사를 생성(GPU). 요청이 실제로 오가는 라이브 파이프라인.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Personalization</div>
+      <h2>NPC마다 다른 성격 · 다른 목소리</h2>
+      <p>각 NPC는 데이터 자산(DataAsset)으로 정의된다. 성격·지식·금지 주제뿐 아니라, 음성의
+        피치·속도까지 NPC별로 지정해 목소리를 구분한다.</p>
+    </div>
+    <figure class="shot">
+      <img src="__IMG_VOICE__" alt="언리얼 에디터 — NPC 프로필 데이터 자산의 음성 설정" />
+      <figcaption><span class="cap-k">에디터</span>
+        대장장이 ‘로버트’의 프로필. <span class="mono">Voice Pitch −8.0 / Speed 0.95</span> — 낮고 굵고
+        느린 목소리로, 무뚝뚝한 성격과 맞췄다. 상인은 높고 빠르게, 경비병은 딱딱하게 각각 다르게 설정.</figcaption>
+    </figure>
+    <div class="feat">
+      <div class="fcard a">
+        <h3>성격 (LLM)</h3>
+        <p>시스템 프롬프트에 성격·말투·아는 것/모르는 것·금지 주제를 담아, 같은 질문에도 NPC마다 다르게 답한다.
+          대화 기록은 NPC별로 독립 저장.</p>
+      </div>
+      <div class="fcard t">
+        <h3>목소리 (TTS)</h3>
+        <p>단일 화자 TTS를 포먼트 보존 피치 시프트로 변형해, 캐릭터별로 자연스럽게 다른 음색을 만든다.
+          음성 실패는 대화를 막지 않도록 격리.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Stack &amp; Design</div>
+      <h2>기술 스택 · 설계</h2>
+    </div>
+    <table class="stack">
+      <tr><td>게임 엔진</td><td>Unreal Engine 5.7 — C++ 게임플레이 모듈 (GameInstanceSubsystem, UMG, Enhanced Input)</td></tr>
+      <tr><td>대화 LLM</td><td>gemma-4-E2B-it · llama.cpp llama-server · OpenAI 호환 API · GPU</td></tr>
+      <tr><td>음성 TTS</td><td>MeloTTS 한국어 (VITS2) · praat 포먼트 보존 피치 시프트 · CPU 실시간</td></tr>
+      <tr><td>중간 서버</td><td>Python 3.11 · FastAPI · 채팅 중계 + TTS + (향후) STT 확장 지점</td></tr>
+      <tr><td>설계 원칙</td><td>LLM은 대사만 생성 — 게임 상태는 응답으로 변경하지 않음 · 서버 URL/설정은 에디터에서 외부화</td></tr>
+      <tr><td>안정성</td><td>모든 비동기 콜백에서 객체 유효성 검사 · 늦은 응답 폐기 · 서버 장애 시 무크래시</td></tr>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="v"><span>상태: <b>동작 · 검증됨</b></span><span style="color:var(--faint)">|</span>
+      <span>대화 + 한국어 음성 + NPC별 목소리 + 커스텀 UI</span></div>
+    <p class="note">ChattingNPC — 로컬 LLM 다중 NPC 대화 시스템. 개인 프로젝트.</p>
+  </div>
+</footer>
