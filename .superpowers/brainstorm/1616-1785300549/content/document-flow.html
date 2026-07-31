@@ -1,0 +1,139 @@
+<style>
+  #portfolio-flow .storyboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin: 22px 0 28px;
+  }
+  #portfolio-flow .page {
+    min-height: 230px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--card-foreground);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  #portfolio-flow .page-number {
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+  #portfolio-flow .page h3 {
+    margin: 0;
+  }
+  #portfolio-flow .rule {
+    height: 1px;
+    background: var(--border);
+  }
+  #portfolio-flow .hero-block,
+  #portfolio-flow .image-block,
+  #portfolio-flow .diagram-block {
+    display: grid;
+    place-items: center;
+    min-height: 68px;
+    background: color-mix(in srgb, var(--viz-series-1) 12%, transparent);
+    color: var(--foreground);
+  }
+  #portfolio-flow .diagram-block {
+    min-height: 84px;
+    background: color-mix(in srgb, var(--viz-series-2) 13%, transparent);
+  }
+  #portfolio-flow .mini-copy {
+    color: var(--muted-foreground);
+  }
+  #portfolio-flow .flow-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted-foreground);
+  }
+  #portfolio-flow .flow-label strong {
+    color: var(--foreground);
+  }
+  #portfolio-flow .approval {
+    margin-top: 8px;
+  }
+  @media (max-width: 520px) {
+    #portfolio-flow .storyboard {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div id="portfolio-flow">
+  <h2>ChattingNPC — 7페이지 이야기 흐름</h2>
+  <p class="subtitle">WHY에서 시작해 설계 판단과 HOW를 보여주고, 검증된 결과로 마무리합니다.</p>
+
+  <div class="storyboard" aria-label="포트폴리오 7페이지 구성">
+    <article class="page">
+      <span class="page-number">01 · COVER</span>
+      <div class="hero-block">게임 화면 크게</div>
+      <h3>말을 걸면, NPC가 자기 성격대로 답한다</h3>
+      <div class="rule"></div>
+      <span class="mini-copy">UE 5.7 · Local LLM · Korean TTS</span>
+    </article>
+
+    <article class="page">
+      <span class="page-number">02 · WHY</span>
+      <h3>정해진 대사를 반복하는 NPC</h3>
+      <div class="image-block">문제 → 목표</div>
+      <span class="mini-copy">비용·인터넷·데이터 외부 전송 없이 “진짜 대화”가 되는 NPC를 만들고자 했다.</span>
+    </article>
+
+    <article class="page">
+      <span class="page-number">03 · DESIGN</span>
+      <h3>왜 서버를 둘로 나눴나</h3>
+      <div class="diagram-block">게임 → 프록시 → LLM / TTS</div>
+      <span class="mini-copy">게임과 AI 엔진을 분리해 교체 가능성과 장애 격리를 확보했다.</span>
+    </article>
+
+    <article class="page">
+      <span class="page-number">04 · HOW / TEXT</span>
+      <h3>대화 한 번의 흐름</h3>
+      <div class="diagram-block">입력 → 프롬프트 → 생성 → 표시</div>
+      <span class="mini-copy">NPC 프로필과 최근 대화를 조립해 로컬 LLM 응답을 UI에 표시한다.</span>
+    </article>
+
+    <article class="page">
+      <span class="page-number">05 · HOW / VOICE</span>
+      <h3>텍스트를 NPC의 목소리로</h3>
+      <div class="diagram-block">대사 → TTS → WAV → 3D 재생</div>
+      <span class="mini-copy">음성 실패는 대화와 분리해 게임 흐름을 끊지 않는다.</span>
+    </article>
+
+    <article class="page">
+      <span class="page-number">06 · ENGINEERING</span>
+      <h3>설계가 실제 문제를 만났을 때</h3>
+      <div class="image-block">비동기 · Windows TTS · 장애 격리</div>
+      <span class="mini-copy">늦은 응답 폐기, 객체 유효성 검사, 한국어 TTS 의존성 문제 해결.</span>
+    </article>
+
+    <article class="page">
+      <span class="page-number">07 · RESULT</span>
+      <div class="hero-block">실제 대화 화면 + 핵심 수치</div>
+      <h3>3 NPC · 외부 API 0 · 오프라인 동작</h3>
+      <div class="rule"></div>
+      <span class="mini-copy">배운 점과 다음 개선 방향을 한 문단으로 마무리.</span>
+    </article>
+  </div>
+
+  <p class="flow-label"><strong>읽는 흐름</strong> 문제의식 → 설계 판단 → 구현 흐름 → 문제 해결 → 결과</p>
+
+  <div class="options approval">
+    <div class="option" data-choice="flow-approved" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>이 흐름으로 진행</h3>
+        <p>7페이지 구성과 이야기 순서를 유지합니다.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="flow-revise" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>구성 조정 필요</h3>
+        <p>페이지 순서나 강조 내용을 바꿉니다.</p>
+      </div>
+    </div>
+  </div>
+</div>

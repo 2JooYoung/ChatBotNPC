@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChattingNPC Architecture</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 1600px; height: 900px; margin: 0; overflow: hidden; }
+    body {
+      padding: 72px 80px 56px;
+      background:
+        radial-gradient(circle at 16% 12%, rgba(57, 191, 174, .13), transparent 25%),
+        radial-gradient(circle at 86% 84%, rgba(232, 148, 66, .12), transparent 24%),
+        #15171a;
+      color: #f1ece2;
+      font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+    }
+    .eyebrow {
+      color: #55c4b5;
+      font: 700 16px/1.2 Consolas, monospace;
+      letter-spacing: .18em;
+    }
+    h1 {
+      margin: 13px 0 10px;
+      font: 700 42px/1.12 Consolas, "Malgun Gothic", monospace;
+      letter-spacing: -.035em;
+    }
+    .lead {
+      margin: 0;
+      color: #aba79f;
+      font-size: 20px;
+    }
+    .diagram {
+      display: grid;
+      grid-template-columns: 1fr 190px 1fr 190px 1.06fr;
+      align-items: stretch;
+      gap: 18px;
+      margin-top: 48px;
+      height: 430px;
+    }
+    .node {
+      position: relative;
+      padding: 28px;
+      border: 1px solid #3a3e42;
+      border-radius: 18px;
+      background: rgba(31, 34, 38, .92);
+      box-shadow: 0 22px 50px rgba(0, 0, 0, .3);
+    }
+    .node::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 4px;
+      border-radius: 18px 0 0 18px;
+      background: #55c4b5;
+    }
+    .node.proxy::before { background: #e89442; }
+    .node.engine::before { background: #55c4b5; }
+    .node.voice::before { background: #9d85de; }
+    .num {
+      color: #767b80;
+      font: 700 14px/1 Consolas, monospace;
+      letter-spacing: .14em;
+    }
+    h2 {
+      margin: 18px 0 8px;
+      font: 700 25px/1.2 Consolas, "Malgun Gothic", monospace;
+    }
+    .role {
+      margin: 0 0 26px;
+      color: #aaa69f;
+      font-size: 17px;
+    }
+    ul {
+      display: grid;
+      gap: 13px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: #d6d0c6;
+      font-size: 17px;
+    }
+    li {
+      padding: 11px 13px;
+      border: 1px solid #383c40;
+      border-radius: 9px;
+      background: #191c1f;
+    }
+    .connector {
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: #777c80;
+      font-family: Consolas, monospace;
+    }
+    .connector .line {
+      position: relative;
+      width: 100%;
+      height: 2px;
+      background: #4a5054;
+    }
+    .connector .line::after {
+      content: "›";
+      position: absolute;
+      right: -2px;
+      top: -21px;
+      color: #55c4b5;
+      font-size: 40px;
+    }
+    .connector.return .line::before {
+      content: "‹";
+      position: absolute;
+      left: -2px;
+      bottom: -23px;
+      color: #e89442;
+      font-size: 40px;
+    }
+    .connector .labels {
+      position: absolute;
+      transform: translateY(-48px);
+      width: 190px;
+      display: grid;
+      gap: 7px;
+      color: #b5b0a8;
+      font-size: 13px;
+    }
+    .connector .back {
+      transform: translateY(49px);
+      color: #888d91;
+    }
+    .targets {
+      display: grid;
+      grid-template-rows: 1fr 1fr;
+      gap: 18px;
+    }
+    .targets .node { padding: 23px 25px; }
+    .targets h2 { margin-top: 13px; font-size: 23px; }
+    .targets .role { margin-bottom: 15px; font-size: 15px; }
+    .targets li { padding: 8px 11px; font-size: 15px; }
+    .insights {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-top: 22px;
+    }
+    .insight {
+      padding: 18px 20px;
+      border-top: 1px solid #454a4e;
+      color: #aaa69f;
+      font-size: 15px;
+    }
+    .insight b {
+      display: block;
+      margin-bottom: 5px;
+      color: #eee8de;
+      font: 700 15px/1.2 Consolas, "Malgun Gothic", monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="eyebrow">SYSTEM ARCHITECTURE · LOCAL AI PIPELINE</div>
+  <h1>게임은 하나의 주소만 알고, AI 엔진은 독립적으로 동작한다</h1>
+  <p class="lead">대화 생성과 음성 합성을 분리해 교체 가능성과 장애 격리를 확보했다.</p>
+
+  <main class="diagram">
+    <section class="node">
+      <div class="num">01 · GAME</div>
+      <h2>Unreal Engine 5.7</h2>
+      <p class="role">플레이어 경험과 게임 상태 담당</p>
+      <ul>
+        <li>NPC 상호작용 · 대화 UI</li>
+        <li>NPC 프로필 · 독립 대화 기록</li>
+        <li>HTTP 요청 · 응답 유효성 검사</li>
+        <li>NPC 위치에서 3D 음성 재생</li>
+      </ul>
+    </section>
+
+    <div class="connector return">
+      <div class="labels">
+        <span>POST /v1/chat/completions</span>
+        <span>POST /tts</span>
+      </div>
+      <div class="line"></div>
+      <div class="labels back">
+        <span>dialogue text · WAV</span>
+      </div>
+    </div>
+
+    <section class="node proxy">
+      <div class="num">02 · INTEGRATION HUB</div>
+      <h2>FastAPI Proxy :8000</h2>
+      <p class="role">게임과 로컬 AI를 잇는 단일 진입점</p>
+      <ul>
+        <li>채팅 요청을 그대로 중계</li>
+        <li>한국어 TTS 요청 처리</li>
+        <li>LLM·TTS 장애를 서로 격리</li>
+        <li>게임 코드 변경 없이 엔진 교체</li>
+      </ul>
+    </section>
+
+    <div class="connector return">
+      <div class="labels">
+        <span>chat passthrough</span>
+        <span>local synthesis</span>
+      </div>
+      <div class="line"></div>
+      <div class="labels back">
+        <span>text · 16-bit PCM WAV</span>
+      </div>
+    </div>
+
+    <div class="targets">
+      <section class="node engine">
+        <div class="num">03A · DIALOGUE</div>
+        <h2>llama-server :8080</h2>
+        <p class="role">gemma-4-E2B-it · GPU</p>
+        <ul>
+          <li>NPC 성격에 맞는 대사 생성</li>
+        </ul>
+      </section>
+      <section class="node voice">
+        <div class="num">03B · VOICE</div>
+        <h2>MeloTTS · Korean</h2>
+        <p class="role">로컬 한국어 음성 합성 · CPU</p>
+        <ul>
+          <li>대사 → WAV · NPC별 피치/속도</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer class="insights">
+    <div class="insight"><b>ONE ENDPOINT</b>UE는 프록시 주소 하나만 알면 된다.</div>
+    <div class="insight"><b>REPLACEABLE</b>LLM과 TTS를 서로 독립적으로 교체할 수 있다.</div>
+    <div class="insight"><b>FAIL-SAFE</b>음성 실패가 텍스트 대화를 중단시키지 않는다.</div>
+  </footer>
+</body>
+</html>

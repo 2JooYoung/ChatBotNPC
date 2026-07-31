@@ -1,0 +1,118 @@
+<style>
+  #portfolio-style .style-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    margin-top: 24px;
+  }
+  #portfolio-style .style-card {
+    cursor: pointer;
+  }
+  #portfolio-style .paper {
+    aspect-ratio: 1 / 1.3;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: hidden;
+  }
+  #portfolio-style .paper-light {
+    background: #f5f1e8;
+    color: #211d18;
+    border: 1px solid #d3cab8;
+  }
+  #portfolio-style .paper-dark {
+    background: #17191c;
+    color: #f0eadf;
+    border: 1px solid #3a3e43;
+  }
+  #portfolio-style .kicker {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    letter-spacing: .12em;
+    font-size: .72rem;
+  }
+  #portfolio-style .paper-light .kicker { color: #a45f19; }
+  #portfolio-style .paper-dark .kicker { color: #47b8aa; }
+  #portfolio-style .paper h3 {
+    margin: 0;
+    max-width: 16ch;
+    font-size: 1.35rem;
+  }
+  #portfolio-style .lead {
+    max-width: 34ch;
+    opacity: .72;
+  }
+  #portfolio-style .visual {
+    flex: 1;
+    min-height: 120px;
+    display: grid;
+    place-items: center;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  #portfolio-style .paper-light .visual {
+    color: #a45f19;
+    background:
+      linear-gradient(120deg, rgba(164,95,25,.13), transparent 55%),
+      repeating-linear-gradient(0deg, transparent 0 22px, rgba(33,29,24,.08) 23px);
+  }
+  #portfolio-style .paper-dark .visual {
+    color: #47b8aa;
+    background:
+      linear-gradient(120deg, rgba(71,184,170,.14), transparent 55%),
+      repeating-linear-gradient(0deg, transparent 0 22px, rgba(240,234,223,.07) 23px);
+  }
+  #portfolio-style .meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: .72rem;
+    opacity: .66;
+  }
+  #portfolio-style .style-copy {
+    margin-top: 14px;
+  }
+  #portfolio-style .style-copy h3 {
+    margin-bottom: 4px;
+  }
+  @media (max-width: 620px) {
+    #portfolio-style .style-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div id="portfolio-style">
+  <h2>어떤 인상으로 보여줄까요?</h2>
+  <p class="subtitle">내용은 같고, 종이 위에서 전달되는 분위기와 가독성만 비교합니다.</p>
+
+  <div class="style-grid">
+    <article class="style-card" data-choice="editorial-light" onclick="toggleSelect(this)">
+      <div class="paper paper-light">
+        <span class="kicker">03 · SYSTEM DESIGN</span>
+        <h3>왜 서버를 둘로 나눴나</h3>
+        <p class="lead">게임은 하나의 주소만 알고, LLM과 TTS는 독립적으로 교체하고 실패할 수 있다.</p>
+        <div class="visual">UE → PROXY → LLM<br>　　　　└→ TTS</div>
+        <div class="meta"><span>ChattingNPC</span><span>03 / 07</span></div>
+      </div>
+      <div class="style-copy">
+        <h3>A · 밝은 편집형 — 추천</h3>
+        <p>아이보리 종이, 먹색 본문, 주황 포인트. 인쇄와 화면 모두 읽기 쉽고 차분합니다.</p>
+      </div>
+    </article>
+
+    <article class="style-card" data-choice="technical-dark" onclick="toggleSelect(this)">
+      <div class="paper paper-dark">
+        <span class="kicker">03 · SYSTEM DESIGN</span>
+        <h3>왜 서버를 둘로 나눴나</h3>
+        <p class="lead">게임은 하나의 주소만 알고, LLM과 TTS는 독립적으로 교체하고 실패할 수 있다.</p>
+        <div class="visual">UE → PROXY → LLM<br>　　　　└→ TTS</div>
+        <div class="meta"><span>ChattingNPC</span><span>03 / 07</span></div>
+      </div>
+      <div class="style-copy">
+        <h3>B · 어두운 콘솔형</h3>
+        <p>차콜 배경, 밝은 본문, 청록 포인트. 기술적인 인상은 강하지만 출력 시 부담이 있습니다.</p>
+      </div>
+    </article>
+  </div>
+</div>
